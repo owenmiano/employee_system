@@ -1,14 +1,12 @@
 package org.example;
 
 import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 
 import java.sql.Connection;
 import java.sql.SQLException;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.StringJoiner;
+import java.util.*;
 
 public class PeriodController {
     public static void findPeriod(Connection connection, HashMap<String, Object> periodData, String[] columns) {
@@ -82,5 +80,30 @@ public class PeriodController {
             System.out.println("An error occurred: " + e.getMessage());
             e.printStackTrace();
         }
+    }
+
+    public static String fetchActivePeriod(Connection connection) {
+        String[] columns = {"period"};
+        String whereClause = "status = ?";
+        List<String> values = Collections.singletonList("Current");
+
+        try {
+            JsonArray result = GenericQueries.select(connection, "period", columns, whereClause, values.toArray());
+            if (result.size() > 0) {
+                // Assuming the first element of the JsonArray is the JsonObject we're interested in
+                JsonElement firstElement = result.get(0);
+                if (firstElement != null && firstElement.isJsonObject()) {
+                    JsonObject periodObject = firstElement.getAsJsonObject();
+                    // Assuming the 'period' field contains the period string
+                    return periodObject.get("period").getAsString();
+
+                }
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+            System.out.println("An error occurred fetching the active period: " + e.getMessage());
+        }
+
+        return null; // Return null if no active period is found or in case of an error
     }
 }

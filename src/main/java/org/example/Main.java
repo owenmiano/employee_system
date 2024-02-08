@@ -19,6 +19,7 @@ public class Main {
             try (Connection connection = dbManager.getConnection()) {
                 System.out.println("Database Connected successfully");
                 dbManager.createTables(connection);
+
                 addEmployeeEarnings(connection);
             }
 
@@ -112,7 +113,7 @@ public class Main {
     private static void addEarningsType(Connection connection) {
         HashMap<String, Object> earningsTypeData = new HashMap<>();
         earningsTypeData.put("company_id", 1);
-        earningsTypeData.put("name", "Transport Allowance");
+        earningsTypeData.put("name", "Mortgage Allowance");
 
         EarningsController.createEarningsType(connection, earningsTypeData);
 
@@ -171,23 +172,22 @@ public class Main {
     private static void addEmployee(Connection connection) {
         HashMap<String, Object> employeeData = new HashMap<>();
         employeeData.put("company_id", 1);
-        employeeData.put("employee_name", "Mariah Kagwe");
+        employeeData.put("employee_name", "Alice Mwangi");
         employeeData.put("employee_number", "SKY1313");
-        employeeData.put("id_number", "23458967");
-        employeeData.put("nssf_no", "0100020303010982738");
-        employeeData.put("nhif_no", "22203001011");
-        employeeData.put("kra_pin", "A0145704G");
-        employeeData.put("phone", "0701908900");
-        employeeData.put("email", "mariah90@gmail.com");
-        employeeData.put("date_of_birth", "1997-01-15");
-        employeeData.put("employment_start_date", "2024-02-08");
-        employeeData.put("employment_status", "new");
+        employeeData.put("id_number", "22456789");
+        employeeData.put("nssf_no", "010103030303041413");
+        employeeData.put("nhif_no", "2220354246");
+        employeeData.put("kra_pin", "A0134510G");
+        employeeData.put("phone", "0712345678");
+        employeeData.put("email", "alice90@gmail.com");
+        employeeData.put("date_of_birth", "1992-05-20");
+        employeeData.put("employment_start_date", "04-2023");
         employeeData.put("employment_termination_date", null);
-        employeeData.put("employee_position", "Marketing Consultant");
-        employeeData.put("department_id", 2);
+        employeeData.put("employee_position", "HR Manager");
+        employeeData.put("department_id", 1);
         employeeData.put("gender", "Female");
-        employeeData.put("username", "mariah");
-        employeeData.put("password", "Mariah!2024$");
+        employeeData.put("username", "alicia");
+        employeeData.put("password", "Alice!2024$");
 
         EmployeeController.createEmployee(connection, employeeData);
 
@@ -216,9 +216,10 @@ public class Main {
     }
 
     //add period method
-    private static void addperiod(Connection connection) {
+    private static void addPeriod(Connection connection) {
         HashMap<String, Object> periodData = new HashMap<>();
-        periodData.put("period", "2024-02");
+        periodData.put("period", "08-2023");
+        periodData.put("status", "Current");
 
         PeriodController.createPeriod(connection, periodData);
 
@@ -226,9 +227,10 @@ public class Main {
     //     select period method
     private static void selectPeriod(Connection connection) {
         HashMap<String, Object> periodData = new HashMap<>();
-        periodData.put("period", "2024-02");
+        periodData.put("period", "08-2023");
+        periodData.put("status", "Active");
 
-        String[] columns = {"period"};
+        String[] columns = {"period","status"};
 
         PeriodController.findPeriod(connection, periodData,columns);
 
@@ -245,14 +247,22 @@ public class Main {
 
     //add Employee earnings  method
     private static void addEmployeeEarnings(Connection connection) {
+
         HashMap<String, Object> employeeEarningsData = new HashMap<>();
         employeeEarningsData.put("earning_types_id", 1);
-        employeeEarningsData.put("employee_id", 1);
-        employeeEarningsData.put("amount", 1);
+        employeeEarningsData.put("employee_id", 3);
+        employeeEarningsData.put("amount", 10000);
         employeeEarningsData.put("period_id", 1);
         EmployeeEarningsController.createEmployeeEarnings(connection, employeeEarningsData);
 
     }
+////    private static void addEmployeeAllowances(Connection connection) {
+////        HashMap<String, Object> employeeAllowanceData = new HashMap<>();
+////        employeeAllowanceData.put("earning_types_id", 1);
+////        employeeAllowanceData.put("employee_id", 1);
+////        EmployeeEarningsController.createEmployeeAllowance(connection, employeeAllowanceData);
+////
+////    }
     //     select employee earnings  method
     private static void selectEmployeeEarnings(Connection connection) {
 

@@ -1,15 +1,16 @@
 package org.example;
 
+import java.time.YearMonth;
+import java.time.format.DateTimeFormatter;
+import java.util.*;
 import java.util.regex.Pattern;
 import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import java.sql.Connection;
 import java.sql.SQLException;
-import java.util.ArrayList;
-import java.util.HashMap;
+
 import org.mindrot.jbcrypt.BCrypt;
-import java.util.Map;
-import java.util.StringJoiner;
 
 public class EmployeeController {
     private static boolean isValidEmail(String email) {
@@ -113,7 +114,28 @@ public class EmployeeController {
                 System.out.println("Invalid phone number.");
                 return;
             }
+            String activePeriod = PeriodController.fetchActivePeriod(connection);
+            System.out.println("Current "+activePeriod);
+            System.out.println("employment start date "+employeeData.get("employment_start_date").toString());
+            if (activePeriod == null) {
+                System.out.println("Failed to fetch the active period or no active period found.");
+                return;
+            }
 
+            String employmentStartDateStr = employeeData.get("employment_start_date").toString();
+            // Assuming employment_start_date in employeeData and periods in database are in format "MM-yyyy"
+            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("MM-yyyy");
+            YearMonth employmentStartDate = YearMonth.parse(employmentStartDateStr, formatter);
+            YearMonth activePeriodDate = YearMonth.parse(activePeriod, formatter);
+
+            // Check if the employment start date is greater than the active period
+            if (employmentStartDate.isAfter(activePeriodDate) || employmentStartDate.equals(activePeriodDate)) {
+                // If the start date is after the active period or exactly the same, set the status to "new"
+                employeeData.put("employment_status", "new");
+            } else {
+                // If the start date is before the active period, then it's considered "active"
+                employeeData.put("employment_status", "active");
+            }
 
             boolean isInserted = GenericQueries.insertData(connection, "employee", employeeData);
 
@@ -128,6 +150,64 @@ public class EmployeeController {
             e.printStackTrace();
         }
     }
+
+    public static String fetchEmployeeTermnationDate(Connection connection, int employeeId) {
+        String[] columns = {"employment_termination_date"};
+        String whereClause = "employee_id = ?";
+        List<Integer> values = Collections.singletonList(employeeId);
+
+        try {
+            JsonArray result = GenericQueries.select(connection, "employee", columns, whereClause, values.toArray());
+            if (result.size() > 0) {
+                // Assuming the first element of the JsonArray is the JsonObject we're interested in
+                JsonElement firstElement = result.get(0);
+                if (firstElement != null && firstElement.isJsonObject()) {
+                    JsonObject employeeObject = firstElement.getAsJsonObject();
+                    // Corrected to fetch the 'employment_termination_date' field
+                    JsonElement terminationDateElement = employeeObject.get("employment_termination_date");
+                    if (terminationDateElement != null && !terminationDateElement.isJsonNull()) {
+                        return terminationDateElement.getAsString();
+                    }
+                }
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+            System.out.println("An error occurred fetching the termination date: " + e.getMessage());
+        }
+
+        return null; // Return null if no termination date is found or in case of an error
+    }
+
+    public static String fetchEmployeeStartDate(Connection connection, int employeeId) {
+        String[] columns = {"employment_start_date"};
+        String whereClause = "employee_id = ?";
+        List<Integer> values = Collections.singletonList(employeeId);
+
+        try {
+            JsonArray result = GenericQueries.select(connection, "employee", columns, whereClause, values.toArray());
+            if (result.size() > 0) {
+                // Assuming the first element of the JsonArray is the JsonObject we're interested in
+                JsonElement firstElement = result.get(0);
+                if (firstElement != null && firstElement.isJsonObject()) {
+                    JsonObject employeeObject = firstElement.getAsJsonObject();
+                    // Corrected to fetch the 'employment_termination_date' field
+                    JsonElement startDateElement = employeeObject.get("employment_start_date");
+                    if (startDateElement != null && !startDateElement.isJsonNull()) {
+                        return startDateElement.getAsString();
+                    }
+                }
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+            System.out.println("An error occurred fetching the termination date: " + e.getMessage());
+        }
+
+        return null; // Return null if no termination date is found or in case of an error
+    }
+
+
+
+
 
     public static void updateEmployee(Connection connection, HashMap<String, Object> employeeData, int employeeID) {
         try {

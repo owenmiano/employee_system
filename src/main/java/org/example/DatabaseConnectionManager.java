@@ -232,9 +232,9 @@ public class DatabaseConnectionManager {
                         "phone VARCHAR(10), " +
                         "email VARCHAR(50), " +
                         "date_of_birth DATE, " +
-                        "employment_start_date DATE NOT NULL, " +
-                        "employment_termination_date DATE, " +
-                        "employment_status VARCHAR(20) DEFAULT 'new', " +
+                        "employment_start_date VARCHAR(10) NOT NULL, " +
+                        "employment_termination_date VARCHAR(10), " +
+                        "employment_status VARCHAR(20) NOT NULL, " +
                         "employee_position VARCHAR(50) NOT NULL, " +
                         "department_id BIGINT, " +
                         "gender VARCHAR(10), " +
@@ -258,7 +258,8 @@ public class DatabaseConnectionManager {
 
                 "CREATE TABLE IF NOT EXISTS period (" +
                         "period_id BIGINT PRIMARY KEY AUTO_INCREMENT, " +
-                        "period VARCHAR(50) NOT NULL, " +    // yyyy-MM
+                        "period VARCHAR(10) NOT NULL, " +    // yyyy-MM
+                        "status VARCHAR(10) NOT NULL, " +
                         "date_created DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, " +
                         "date_modified DATETIME)",
 
