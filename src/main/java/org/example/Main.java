@@ -20,7 +20,7 @@ public class Main {
             try (Connection connection = dbManager.getConnection()) {
                 System.out.println("Database Connected successfully");
                 dbManager.createTables(connection);
-                PeriodController.fetchLastPeriodID(connection);
+                addEmployeeEarnings(connection);
             }
 
         } catch (SQLException e) {
@@ -247,27 +247,44 @@ public class Main {
         HashMap<String, Object> employeeEarningsData = new HashMap<>();
         Integer earningTypeId = EarningsController.findEarningType(connection, "Basic Salary");
         employeeEarningsData.put("earning_types_id", earningTypeId);
-        employeeEarningsData.put("employee_id", 3);
+        employeeEarningsData.put("employee_id", 4); // Example employee ID
         Map<String, String> periodInfo = PeriodController.fetchActivePeriod(connection);
         int periodId = Integer.parseInt(periodInfo.get("period_id"));
         employeeEarningsData.put("period_id", periodId);
         int employeeId = (Integer) employeeEarningsData.get("employee_id");
 
+        // Check if the employee's employment_status is 'terminated'
+        if (EmployeeEarningsController.isEmployeeTerminated(connection, employeeId)) {
+            System.out.println("Cannot add salary for a terminated employee.");
+            return;
+        }
+
+        boolean shouldCreateEarnings = true; // Flag to control whether to proceed with creating earnings
+
         if (EmployeeEarningsController.checkForExistingEarningsRecord(connection, employeeId, earningTypeId)) {
             System.out.println("Earnings record for the employee already exists. Fetching last salary.");
-            // Fetch the last salary and update the amount in employeeEarningsData
-//            float lastSalary = EmployeeEarningsController.fetchLastSalaryForEmployee(connection, employeeId, earningTypeId); // Adjust this method to use periodId if necessary
-//            float newSalary = lastSalary * 1.02f;
-//            employeeEarningsData.put("amount", newSalary);
+            float lastSalary = EmployeeEarningsController.fetchLastSalaryForEmployee(connection, employeeId, earningTypeId);
+            if (lastSalary > 0) {
+                System.out.println("Last salary: " + lastSalary);
+                float newSalary = lastSalary * 1.02f; // Apply the increase
+                System.out.println("Updated salary: " + newSalary);
+                employeeEarningsData.put("amount", newSalary);
+            } else {
+                System.out.println("Last salary not greater than 0. Aborting operation.");
+                shouldCreateEarnings = false; // Do not proceed with creating earnings
+            }
         } else {
             // If no existing earnings record, set the amount for a new record
             System.out.println("No existing earnings record found. Adding new earnings.");
-            employeeEarningsData.put("amount", 10000); // Set the new amount
+            employeeEarningsData.put("amount", 100000); // Example default amount
         }
 
-        EmployeeEarningsController.createEmployeeEarnings(connection, employeeEarningsData);
-
+        // Only call createEmployeeEarnings if shouldCreateEarnings is true
+        if (shouldCreateEarnings) {
+            EmployeeEarningsController.createEmployeeEarnings(connection, employeeEarningsData);
+        }
     }
+
 
     //     select employee earnings  method
     private static void selectEmployeeEarnings(Connection connection) {
@@ -286,5 +303,9 @@ public class Main {
 
     }
 
+    private static void addEmployeeReductions(Connection connection) {
+        HashMap<String, Object> employeeEarningsData = new HashMap<>();
+        employeeEarningsData.put("employee_id", 1);
 
+    }
 }

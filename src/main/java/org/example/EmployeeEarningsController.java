@@ -62,37 +62,26 @@ public class EmployeeEarningsController {
             System.out.println("Employee eanings data is missing or incomplete.");
             return;
         }
-
-
-        Integer amountInt = (Integer) employeeEarningsData.get("amount");
-        float amount = amountInt.floatValue();
+            Number amountNumber = (Number) employeeEarningsData.get("amount");
+            float amount = amountNumber.floatValue();
         int periodId = (Integer) employeeEarningsData.get("period_id");
 //        int earningTypeId = (Integer) employeeEarningsData.get("earning_types_id");
         Integer employeeId = (Integer) employeeEarningsData.get("employee_id");
-        if (employeeId == null) {
-            System.out.println("Employee ID is missing.");
-            return;
-        }
 
-        // Check if the employee's employment_status is 'terminated'
-        if (isEmployeeTerminated(connection, employeeId)) {
-            System.out.println("Cannot add salary for a terminated employee.");
-            return;
-        }
+
         // Check if the employee has been working for at least 3 months
+        boolean isInserted = GenericQueries.insertData(connection, "employee_earnings", employeeEarningsData);
         if (hasWorkedForThreeMonths(connection, employeeId)) {
             // Calculate and add allowances based on the provided basic salary
             calculateAndAddAllowances(connection, employeeId, amount, periodId);
         }
-
-        boolean isInserted = GenericQueries.insertData(connection, "employee_earnings", employeeEarningsData);
         if (isInserted) {
             System.out.println("Employee earnings added successfully");
         } else {
             System.out.println("Failed to add employee salary");
         }
     }
-    private static boolean isEmployeeTerminated(Connection connection, int employeeId) {
+    public static boolean isEmployeeTerminated(Connection connection, int employeeId) {
         Map<String, String> activePeriodInfo = PeriodController.fetchActivePeriod(connection);
         String period = activePeriodInfo.get("period");
         String termination = EmployeeController.fetchEmployeeTermnationDate(connection,employeeId);
@@ -124,11 +113,34 @@ public class EmployeeEarningsController {
         }
     }
 
-//    public static float fetchLastSalaryForEmployee(Connection connection, int employeeId, int earningTypeId) {
-//
-//
-//
-//    }
+    public static float fetchLastSalaryForEmployee(Connection connection, int employeeId, int earningTypeId) {
+        String[] columns = {"amount"};
+        Integer lastActivePeriod = PeriodController.fetchLastPeriodID(connection);
+        if (lastActivePeriod == null) {
+            System.out.println("Could not retrieve the last active period.");
+            return 0; // No period found
+        }
+
+        String whereClause = "employee_id = ? AND earning_types_id = ? AND period_id = ?";
+        Object[] params = new Object[]{employeeId, earningTypeId, lastActivePeriod};
+
+        try {
+            JsonArray result = GenericQueries.select(connection, "employee_earnings", columns, whereClause, params);
+            if (result.size() > 0) {
+                JsonElement firstElement = result.get(0);
+                if (firstElement != null && firstElement.isJsonObject()) {
+                    JsonObject earningsObject = firstElement.getAsJsonObject();
+                    return earningsObject.get("amount").getAsFloat(); // Return amount if found
+                }
+            }
+            System.out.println("No earnings record found for the specified parameters.");
+        } catch (SQLException e) {
+            System.out.println("An error occurred fetching the last salary: " + e.getMessage());
+            e.printStackTrace();
+        }
+        return 0; // Default return for no record found or error
+    }
+
 
 
     public static boolean hasWorkedForThreeMonths(Connection connection, int employeeId) {
@@ -157,22 +169,33 @@ public class EmployeeEarningsController {
     }
 
 
-
     private static void calculateAndAddAllowances(Connection connection, int employeeId, double basicSalary, int periodId) {
-        final double HOUSE_ALLOWANCE_RATE = 0.03;
-        final double TRANSPORT_ALLOWANCE_RATE = 0.015;
-        final double MORTGAGE_ALLOWANCE_RATE = 0.02;
+        Map<String, Double> allowanceRates = new HashMap<>();
+        allowanceRates.put("Housing Allowance", 0.03);
+        allowanceRates.put("Transport Allowance", 0.015);
+        allowanceRates.put("Mortgage Allowance", 0.02);
 
-        // Calculate allowances
-        double houseAllowance = basicSalary * HOUSE_ALLOWANCE_RATE;
-        double transportAllowance = basicSalary * TRANSPORT_ALLOWANCE_RATE;
-        double mortgageAllowance = basicSalary * MORTGAGE_ALLOWANCE_RATE;
+        // Iterate through each allowance type
+        for (Map.Entry<String, Double> allowanceEntry : allowanceRates.entrySet()) {
+            String allowanceDescription = allowanceEntry.getKey();
+            Double rate = allowanceEntry.getValue();
 
-        // Insert allowances
-        insertAllowance(connection, employeeId, 2, houseAllowance, periodId); // House allowance
-        insertAllowance(connection, employeeId, 3, transportAllowance, periodId); // Transport allowance
-        insertAllowance(connection, employeeId, 4, mortgageAllowance, periodId); // Mortgage allowance
+            // Calculate allowance amount
+            double allowanceAmount = basicSalary * rate;
+
+            // Dynamically get the earning type ID based on description
+            Integer earningTypeId = EarningsController.findEarningType(connection, allowanceDescription);
+
+            // Check if the ID was found and insert allowances
+            if (earningTypeId != null) {
+                insertAllowance(connection, employeeId, earningTypeId, allowanceAmount, periodId);
+            } else {
+                System.out.println(allowanceDescription + " type not found.");
+            }
+        }
     }
+
+
 
     private static void insertAllowance(Connection connection, int employeeId, int earningTypeId, double amount, int periodId) {
         HashMap<String, Object> allowanceData = new HashMap<>();
@@ -182,9 +205,7 @@ public class EmployeeEarningsController {
         allowanceData.put("period_id", periodId);
         boolean isInserted = GenericQueries.insertData(connection, "employee_earnings", allowanceData);
 
-        if (isInserted) {
-            System.out.println("Allowance inserted successfully for employee ID " + employeeId + ", earning type ID " + earningTypeId);
-        } else {
+        if (!isInserted) {
             System.out.println("Failed to insert allowance for employee ID " + employeeId + ", earning type ID " + earningTypeId);
         }
     }
