@@ -7,6 +7,7 @@ import java.nio.file.Paths;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.HashMap;
+import java.util.Map;
 
 // Press Shift twice to open the Search Everywhere dialog and type `show whitespaces`,
 // then press Enter. You can now see whitespace characters in your code.
@@ -19,8 +20,7 @@ public class Main {
             try (Connection connection = dbManager.getConnection()) {
                 System.out.println("Database Connected successfully");
                 dbManager.createTables(connection);
-
-                addEmployeeEarnings(connection);
+                PeriodController.fetchLastPeriodID(connection);
             }
 
         } catch (SQLException e) {
@@ -120,12 +120,8 @@ public class Main {
     }
     //     select earning type method
     private static void selectEarningsType(Connection connection) {
-        HashMap<String, Object> earningsTypeData = new HashMap<>();
-        earningsTypeData.put("name", "");
-
-        String[] columns = {"name"};
-
-        EarningsController.findEarningTypes(connection, earningsTypeData,columns);
+        String earningType="Basic Salary";
+        EarningsController.findEarningType(connection, earningType);
 
     }
     //    modify earning type method
@@ -172,22 +168,22 @@ public class Main {
     private static void addEmployee(Connection connection) {
         HashMap<String, Object> employeeData = new HashMap<>();
         employeeData.put("company_id", 1);
-        employeeData.put("employee_name", "Alice Mwangi");
-        employeeData.put("employee_number", "SKY1313");
-        employeeData.put("id_number", "22456789");
-        employeeData.put("nssf_no", "010103030303041413");
-        employeeData.put("nhif_no", "2220354246");
-        employeeData.put("kra_pin", "A0134510G");
-        employeeData.put("phone", "0712345678");
-        employeeData.put("email", "alice90@gmail.com");
-        employeeData.put("date_of_birth", "1992-05-20");
-        employeeData.put("employment_start_date", "04-2023");
+        employeeData.put("employee_name", "Bob Omondi");
+        employeeData.put("employee_number", "SKY1314");
+        employeeData.put("id_number", "33445566");
+        employeeData.put("nssf_no", "010104040404041414");
+        employeeData.put("nhif_no", "2220394850");
+        employeeData.put("kra_pin", "A0126710G");
+        employeeData.put("phone", "0723456789");
+        employeeData.put("email", "bob90@gmail.com");
+        employeeData.put("date_of_birth", "1988-11-30");
+        employeeData.put("employment_start_date", "01-2022");
         employeeData.put("employment_termination_date", null);
-        employeeData.put("employee_position", "HR Manager");
-        employeeData.put("department_id", 1);
-        employeeData.put("gender", "Female");
-        employeeData.put("username", "alicia");
-        employeeData.put("password", "Alice!2024$");
+        employeeData.put("employee_position", "IT Support Specialist");
+        employeeData.put("department_id", 4);
+        employeeData.put("gender", "Male");
+        employeeData.put("username", "bobby");
+        employeeData.put("password", "Bobby!2024$");
 
         EmployeeController.createEmployee(connection, employeeData);
 
@@ -247,22 +243,32 @@ public class Main {
 
     //add Employee earnings  method
     private static void addEmployeeEarnings(Connection connection) {
-
+        // Initialize the employeeEarningsData HashMap with basic information
         HashMap<String, Object> employeeEarningsData = new HashMap<>();
-        employeeEarningsData.put("earning_types_id", 1);
+        Integer earningTypeId = EarningsController.findEarningType(connection, "Basic Salary");
+        employeeEarningsData.put("earning_types_id", earningTypeId);
         employeeEarningsData.put("employee_id", 3);
-        employeeEarningsData.put("amount", 10000);
-        employeeEarningsData.put("period_id", 1);
+        Map<String, String> periodInfo = PeriodController.fetchActivePeriod(connection);
+        int periodId = Integer.parseInt(periodInfo.get("period_id"));
+        employeeEarningsData.put("period_id", periodId);
+        int employeeId = (Integer) employeeEarningsData.get("employee_id");
+
+        if (EmployeeEarningsController.checkForExistingEarningsRecord(connection, employeeId, earningTypeId)) {
+            System.out.println("Earnings record for the employee already exists. Fetching last salary.");
+            // Fetch the last salary and update the amount in employeeEarningsData
+//            float lastSalary = EmployeeEarningsController.fetchLastSalaryForEmployee(connection, employeeId, earningTypeId); // Adjust this method to use periodId if necessary
+//            float newSalary = lastSalary * 1.02f;
+//            employeeEarningsData.put("amount", newSalary);
+        } else {
+            // If no existing earnings record, set the amount for a new record
+            System.out.println("No existing earnings record found. Adding new earnings.");
+            employeeEarningsData.put("amount", 10000); // Set the new amount
+        }
+
         EmployeeEarningsController.createEmployeeEarnings(connection, employeeEarningsData);
 
     }
-////    private static void addEmployeeAllowances(Connection connection) {
-////        HashMap<String, Object> employeeAllowanceData = new HashMap<>();
-////        employeeAllowanceData.put("earning_types_id", 1);
-////        employeeAllowanceData.put("employee_id", 1);
-////        EmployeeEarningsController.createEmployeeAllowance(connection, employeeAllowanceData);
-////
-////    }
+
     //     select employee earnings  method
     private static void selectEmployeeEarnings(Connection connection) {
 

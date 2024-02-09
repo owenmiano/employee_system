@@ -114,10 +114,11 @@ public class EmployeeController {
                 System.out.println("Invalid phone number.");
                 return;
             }
-            String activePeriod = PeriodController.fetchActivePeriod(connection);
-            System.out.println("Current "+activePeriod);
+            Map<String, String> activePeriodInfo = PeriodController.fetchActivePeriod(connection);
+            String period = activePeriodInfo.get("period");
+            System.out.println("Current "+period);
             System.out.println("employment start date "+employeeData.get("employment_start_date").toString());
-            if (activePeriod == null) {
+            if (period == null) {
                 System.out.println("Failed to fetch the active period or no active period found.");
                 return;
             }
@@ -126,7 +127,7 @@ public class EmployeeController {
             // Assuming employment_start_date in employeeData and periods in database are in format "MM-yyyy"
             DateTimeFormatter formatter = DateTimeFormatter.ofPattern("MM-yyyy");
             YearMonth employmentStartDate = YearMonth.parse(employmentStartDateStr, formatter);
-            YearMonth activePeriodDate = YearMonth.parse(activePeriod, formatter);
+            YearMonth activePeriodDate = YearMonth.parse(period, formatter);
 
             // Check if the employment start date is greater than the active period
             if (employmentStartDate.isAfter(activePeriodDate) || employmentStartDate.equals(activePeriodDate)) {

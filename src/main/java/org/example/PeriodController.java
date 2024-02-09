@@ -6,6 +6,8 @@ import com.google.gson.JsonObject;
 
 import java.sql.Connection;
 import java.sql.SQLException;
+import java.time.YearMonth;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 
 public class PeriodController {
@@ -26,7 +28,7 @@ public class PeriodController {
             }
 
             String whereClause = whereClauseJoiner.toString();
-            JsonArray jsonArrayResult = GenericQueries.select(connection, "period",columns);
+            JsonArray jsonArrayResult = GenericQueries.select(connection, "period", columns);
             String jsonResult = jsonArrayResult.toString();
             System.out.println(jsonResult);
 
@@ -61,7 +63,7 @@ public class PeriodController {
         }
     }
 
-    public static void updatePeriod(Connection connection, HashMap<String, Object> periodData,  int periodID) {
+    public static void updatePeriod(Connection connection, HashMap<String, Object> periodData, int periodID) {
         try {
             if (periodData == null || periodData.isEmpty()) {
                 System.out.println("Period data is missing or empty.");
@@ -69,7 +71,7 @@ public class PeriodController {
             }
             String whereClause = "period_id = ?";
 
-            JsonObject result = GenericQueries.update(connection, "period", periodData, whereClause,new Object[]{periodID});
+            JsonObject result = GenericQueries.update(connection, "period", periodData, whereClause, new Object[]{periodID});
 
             if (result.get("success").getAsBoolean()) {
                 System.out.println("Period info updated successfully. Rows affected: " + result.get("rowsAffected").getAsInt());
@@ -82,22 +84,63 @@ public class PeriodController {
         }
     }
 
-    public static String fetchActivePeriod(Connection connection) {
-        String[] columns = {"period"};
+    public static Map<String, String> fetchActivePeriod(Connection connection) {
+        String[] columns = {"period", "period_id"};
         String whereClause = "status = ?";
         List<String> values = Collections.singletonList("Current");
+        Map<String, String> periodInfo = new HashMap<>();
 
         try {
             JsonArray result = GenericQueries.select(connection, "period", columns, whereClause, values.toArray());
             if (result.size() > 0) {
-                // Assuming the first element of the JsonArray is the JsonObject we're interested in
                 JsonElement firstElement = result.get(0);
                 if (firstElement != null && firstElement.isJsonObject()) {
                     JsonObject periodObject = firstElement.getAsJsonObject();
-                    // Assuming the 'period' field contains the period string
-                    return periodObject.get("period").getAsString();
+                    String period = periodObject.get("period").getAsString();
+                    String periodId = periodObject.get("period_id").getAsString();
+
+                    periodInfo.put("period", period);
+                    periodInfo.put("period_id", periodId);
+                    return periodInfo;
+                }
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+            System.out.println("An error occurred fetching the active period: " + e.getMessage());
+        }
+
+        return null; // Return null if no active period is found or in case of an error
+    }
+
+    public static Integer fetchLastPeriodID(Connection connection) {
+        Map<String, String> activePeriodInfo = PeriodController.fetchActivePeriod(connection);
+        String period = activePeriodInfo.get("period");
+
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("MM-yyyy");
+        YearMonth activePeriodDate = YearMonth.parse(period, formatter);
+        // Subtract one month to get the previous month
+        YearMonth previousMonth = activePeriodDate.minusMonths(1);
+        String previousMonthStr = previousMonth.format(formatter);
+        System.out.println("Active Period Date: " + activePeriodDate);
+        System.out.println("Previous Month: " + previousMonth);
+
+        try {
+            String[] columns = {"period_id"};
+            String whereClause = "period = ?";
+            ArrayList<Object> values = new ArrayList<>();
+            values.add(previousMonthStr);
+            JsonArray result = GenericQueries.select(connection, "period", columns, whereClause, values.toArray());
+            if (result.size() > 0) {
+                JsonElement firstElement = result.get(0);
+                if (firstElement != null && firstElement.isJsonObject()) {
+                    JsonObject earningTypeObject = firstElement.getAsJsonObject();
+                    // Assuming 'earning_types_id' is the correct column name for the ID
+                    return earningTypeObject.get("period_id").getAsInt();
 
                 }
+            }
+            else {
+                System.out.println("No results found for the specified previous month description.");
             }
         } catch (SQLException e) {
             e.printStackTrace();

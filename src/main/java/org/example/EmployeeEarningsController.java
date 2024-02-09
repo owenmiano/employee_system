@@ -14,6 +14,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 public class EmployeeEarningsController {
     public static void findEmployeeEarnings(Connection connection, int employeeEarningsID) {
@@ -92,7 +93,8 @@ public class EmployeeEarningsController {
         }
     }
     private static boolean isEmployeeTerminated(Connection connection, int employeeId) {
-        String activePeriod = PeriodController.fetchActivePeriod(connection);
+        Map<String, String> activePeriodInfo = PeriodController.fetchActivePeriod(connection);
+        String period = activePeriodInfo.get("period");
         String termination = EmployeeController.fetchEmployeeTermnationDate(connection,employeeId);
 
         if (termination == null) {
@@ -101,18 +103,43 @@ public class EmployeeEarningsController {
 
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("MM-yyyy");
         YearMonth terminationDate = YearMonth.parse(termination, formatter);
-        YearMonth activePeriodDate = YearMonth.parse(activePeriod, formatter);
+        YearMonth activePeriodDate = YearMonth.parse(period, formatter);
 
         // Check if the employment start date is greater than the active period
         return !terminationDate.isAfter(activePeriodDate);
     }
+    public static boolean checkForExistingEarningsRecord(Connection connection, int employeeId, int earningTypeId) {
+        try {
+            String whereClause = "earning_types_id = ? AND employee_id = ?";
+            Object[] params = new Object[]{earningTypeId, employeeId};
+            JsonArray answersReport = GenericQueries.select(connection, "employee_earnings", whereClause, params);
+
+            // Assuming the JsonArray is null or empty when no records are found
+            return answersReport != null && answersReport.size() > 0;
+        } catch (Exception e) {
+            System.out.println("An error occurred: " + e.getMessage());
+            e.printStackTrace();
+            // Return false if an exception occurs, indicating no record found or an error in the process
+            return false;
+        }
+    }
+
+//    public static float fetchLastSalaryForEmployee(Connection connection, int employeeId, int earningTypeId) {
+//
+//
+//
+//    }
+
 
     public static boolean hasWorkedForThreeMonths(Connection connection, int employeeId) {
         // Assume these methods return dates in String format like "yyyy-MM-dd"
         String startDateStr = EmployeeController.fetchEmployeeStartDate(connection, employeeId);
-        String activePeriodStr = PeriodController.fetchActivePeriod(connection); // Adjust based on your actual method
+        Map<String, String> activePeriodInfo = PeriodController.fetchActivePeriod(connection);
+        String period = activePeriodInfo.get("period");
 
-        if (startDateStr == null || activePeriodStr == null) {
+        // Adjust based on your actual method
+
+        if (startDateStr == null || period == null) {
             System.out.println("Start date or active period is missing.");
             return false;
         }
@@ -120,7 +147,7 @@ public class EmployeeEarningsController {
         // Assuming startDateStr and activePeriodStr are actually in "yyyy-MM" format based on the initial question
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("MM-yyyy");
         YearMonth startDate = YearMonth.parse(startDateStr, formatter);
-        YearMonth activePeriodDate = YearMonth.parse(activePeriodStr, formatter);
+        YearMonth activePeriodDate = YearMonth.parse(period, formatter);
 
         // Calculate the difference between the start date and the active period date
         long monthsBetween = ChronoUnit.MONTHS.between(startDate, activePeriodDate);
@@ -162,18 +189,7 @@ public class EmployeeEarningsController {
         }
     }
 
-//    private static double fetchLastSalary(Connection connection, int employeeId) throws Exception {
-//        String query = "SELECT amount FROM employee_earnings WHERE employee_id = ? AND earning_types_id = 1 ORDER BY period_id DESC LIMIT 1";
-//        try (PreparedStatement statement = connection.prepareStatement(query)) {
-//            statement.setInt(1, employeeId);
-//            ResultSet resultSet = statement.executeQuery();
-//            if (resultSet.next()) {
-//                return resultSet.getDouble("amount");
-//            } else {
-//                return 0; // Consider how to handle new employees or error cases
-//            }
-//        }
-//    }
+
 
     public static void updateEarningTypes(Connection connection, HashMap<String, Object> earningsTypeData,  int earningTypeID) {
         try {

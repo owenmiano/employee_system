@@ -1,43 +1,44 @@
 package org.example;
 
 import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.Map;
-import java.util.StringJoiner;
-
 public class EarningsController {
 
-    public static void findEarningTypes(Connection connection, HashMap<String, Object> earningsTypeData, String[] columns) {
+    public static Integer findEarningType(Connection connection, String earningType) {
         try {
-            if (earningsTypeData == null || earningsTypeData.isEmpty()) {
-                System.out.println("No earnings type data provided.");
-                return;
-            }
-
-            StringJoiner whereClauseJoiner = new StringJoiner(" AND ");
+            // Assuming 'type_description' is the column name for the earning type description
+            String whereClause = "name = ?";
             ArrayList<Object> values = new ArrayList<>();
-            for (Map.Entry<String, Object> entry : earningsTypeData.entrySet()) {
-                String key = entry.getKey();
-                Object value = entry.getValue();
-                whereClauseJoiner.add(key + " = ?");
-                values.add(value);
+            values.add(earningType); // Add the provided earning type description to the values
+
+            // Execute the query
+            JsonArray jsonArrayResult = GenericQueries.select(connection, "earning_types", whereClause, values.toArray());
+            if (jsonArrayResult.size() > 0) {
+                JsonElement firstElement = jsonArrayResult.get(0);
+                if (firstElement != null && firstElement.isJsonObject()) {
+                    JsonObject earningTypeObject = firstElement.getAsJsonObject();
+                    // Assuming 'earning_types_id' is the correct column name for the ID
+                    return earningTypeObject.get("earning_types_id").getAsInt();
+
+                }
             }
-
-            String whereClause = whereClauseJoiner.toString();
-            JsonArray jsonArrayResult = GenericQueries.select(connection, "earning_types",columns);
-            String jsonResult = jsonArrayResult.toString();
-            System.out.println(jsonResult);
-
+            else {
+                System.out.println("No results found for the specified earning type description.");
+            }
         } catch (Exception e) {
             System.out.println("An error occurred: " + e.getMessage());
             e.printStackTrace();
         }
+        return null; // Return null if the ID is not found or an error occurs
     }
+
+
 
 
     //insert
