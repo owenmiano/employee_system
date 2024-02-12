@@ -20,7 +20,7 @@ public class Main {
             try (Connection connection = dbManager.getConnection()) {
                 System.out.println("Database Connected successfully");
                 dbManager.createTables(connection);
-                addEmployeeEarnings(connection);
+                modifyEmployee(connection);
             }
 
         } catch (SQLException e) {
@@ -138,20 +138,15 @@ public class Main {
     private static void addDeductionTypes(Connection connection) {
         HashMap<String, Object> deductionTypeData = new HashMap<>();
         deductionTypeData.put("company_id", 1);
-        deductionTypeData.put("name", "NHIF");
+        deductionTypeData.put("name", "PAYE");
 
         DeductionsController.createDeductionTypes(connection, deductionTypeData);
 
     }
     //     select deduction type method
     private static void selectDeductionType(Connection connection) {
-        HashMap<String, Object> deductionTypeData = new HashMap<>();
-        deductionTypeData.put("name", "");
-
-        String[] columns = {"name"};
-
-        DeductionsController.findDeductionTypes(connection, deductionTypeData,columns);
-
+        String deductionType="PAYE";
+        DeductionsController.findDeductionType(connection, deductionType);
     }
     //    modify deduction type method
     private static void modifyDeductionType(Connection connection) {
@@ -204,7 +199,7 @@ public class Main {
     //    modify employee method
     private static void modifyEmployee(Connection connection) {
         HashMap<String, Object> employeeData = new HashMap<>();
-        employeeData.put("kra_pin", "A0145704G");
+        employeeData.put("employment_termination_date", "09-2023");
 
         int employeeID = 2;
         EmployeeController.updateEmployee(connection, employeeData,employeeID);
@@ -243,46 +238,10 @@ public class Main {
 
     //add Employee earnings  method
     private static void addEmployeeEarnings(Connection connection) {
-        // Initialize the employeeEarningsData HashMap with basic information
-        HashMap<String, Object> employeeEarningsData = new HashMap<>();
-        Integer earningTypeId = EarningsController.findEarningType(connection, "Basic Salary");
-        employeeEarningsData.put("earning_types_id", earningTypeId);
-        employeeEarningsData.put("employee_id", 4); // Example employee ID
-        Map<String, String> periodInfo = PeriodController.fetchActivePeriod(connection);
-        int periodId = Integer.parseInt(periodInfo.get("period_id"));
-        employeeEarningsData.put("period_id", periodId);
-        int employeeId = (Integer) employeeEarningsData.get("employee_id");
 
-        // Check if the employee's employment_status is 'terminated'
-        if (EmployeeEarningsController.isEmployeeTerminated(connection, employeeId)) {
-            System.out.println("Cannot add salary for a terminated employee.");
-            return;
-        }
+        int employeeId = 3;
+        EmployeeEarningsController.createEmployeeEarnings(connection,employeeId);
 
-        boolean shouldCreateEarnings = true; // Flag to control whether to proceed with creating earnings
-
-        if (EmployeeEarningsController.checkForExistingEarningsRecord(connection, employeeId, earningTypeId)) {
-            System.out.println("Earnings record for the employee already exists. Fetching last salary.");
-            float lastSalary = EmployeeEarningsController.fetchLastSalaryForEmployee(connection, employeeId, earningTypeId);
-            if (lastSalary > 0) {
-                System.out.println("Last salary: " + lastSalary);
-                float newSalary = lastSalary * 1.02f; // Apply the increase
-                System.out.println("Updated salary: " + newSalary);
-                employeeEarningsData.put("amount", newSalary);
-            } else {
-                System.out.println("Last salary not greater than 0. Aborting operation.");
-                shouldCreateEarnings = false; // Do not proceed with creating earnings
-            }
-        } else {
-            // If no existing earnings record, set the amount for a new record
-            System.out.println("No existing earnings record found. Adding new earnings.");
-            employeeEarningsData.put("amount", 100000); // Example default amount
-        }
-
-        // Only call createEmployeeEarnings if shouldCreateEarnings is true
-        if (shouldCreateEarnings) {
-            EmployeeEarningsController.createEmployeeEarnings(connection, employeeEarningsData);
-        }
     }
 
 
@@ -303,9 +262,12 @@ public class Main {
 
     }
 
+    // Deductions calculation method
     private static void addEmployeeReductions(Connection connection) {
-        HashMap<String, Object> employeeEarningsData = new HashMap<>();
-        employeeEarningsData.put("employee_id", 1);
+        int employeeId=4;
+        Map<String, String> periodInfo = PeriodController.fetchActivePeriod(connection);
+        int periodId = Integer.parseInt(periodInfo.get("period_id"));
 
+        EmployeeDeductionsController.getEmployeeEarnings(connection,employeeId,periodId);
     }
 }

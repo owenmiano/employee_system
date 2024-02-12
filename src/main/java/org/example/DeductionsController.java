@@ -1,6 +1,7 @@
 package org.example;
 
 import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 
 import java.sql.Connection;
@@ -11,31 +12,31 @@ import java.util.Map;
 import java.util.StringJoiner;
 
 public class DeductionsController {
-    public static void findDeductionTypes(Connection connection, HashMap<String, Object> deductionTypeData, String[] columns) {
+    public static Integer findDeductionType(Connection connection, String earningType) {
         try {
-            if (deductionTypeData == null || deductionTypeData.isEmpty()) {
-                System.out.println("No deduction type data provided.");
-                return;
-            }
-
-            StringJoiner whereClauseJoiner = new StringJoiner(" AND ");
+            // Assuming 'type_description' is the column name for the earning type description
+            String whereClause = "name = ?";
             ArrayList<Object> values = new ArrayList<>();
-            for (Map.Entry<String, Object> entry : deductionTypeData.entrySet()) {
-                String key = entry.getKey();
-                Object value = entry.getValue();
-                whereClauseJoiner.add(key + " = ?");
-                values.add(value);
+            values.add(earningType); // Add the provided earning type description to the values
+
+            // Execute the query
+            JsonArray jsonArrayResult = GenericQueries.select(connection, "deduction_types", whereClause, values.toArray());
+            if (jsonArrayResult.size() > 0) {
+                JsonElement firstElement = jsonArrayResult.get(0);
+                if (firstElement != null && firstElement.isJsonObject()) {
+                    JsonObject earningTypeObject = firstElement.getAsJsonObject();
+                    return earningTypeObject.get("deduction_types_id").getAsInt();
+
+                }
             }
-
-            String whereClause = whereClauseJoiner.toString();
-            JsonArray jsonArrayResult = GenericQueries.select(connection, "deduction_types",columns);
-            String jsonResult = jsonArrayResult.toString();
-            System.out.println(jsonResult);
-
+            else {
+                System.out.println("No results found for the specified deduction type description.");
+            }
         } catch (Exception e) {
             System.out.println("An error occurred: " + e.getMessage());
             e.printStackTrace();
         }
+        return null; // Return null if the ID is not found or an error occurs
     }
 
 

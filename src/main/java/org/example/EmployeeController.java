@@ -116,8 +116,7 @@ public class EmployeeController {
             }
             Map<String, String> activePeriodInfo = PeriodController.fetchActivePeriod(connection);
             String period = activePeriodInfo.get("period");
-            System.out.println("Current "+period);
-            System.out.println("employment start date "+employeeData.get("employment_start_date").toString());
+
             if (period == null) {
                 System.out.println("Failed to fetch the active period or no active period found.");
                 return;
@@ -216,9 +215,27 @@ public class EmployeeController {
                 System.out.println("Employee data is missing or empty.");
                 return;
             }
+            if (employeeData.containsKey("employment_termination_date")) {
+                String termination = employeeData.get("employment_termination_date").toString();
+                Map<String, String> activePeriodInfo = PeriodController.fetchActivePeriod(connection);
+                String period = activePeriodInfo.get("period");
+                DateTimeFormatter formatter = DateTimeFormatter.ofPattern("MM-yyyy");
+                YearMonth employmentTerminationDate = YearMonth.parse(termination, formatter);
+                YearMonth activePeriodDate = YearMonth.parse(period, formatter);
+                System.out.println("Employment termination date is provided: " + employmentTerminationDate);
+                System.out.println("Active period " + activePeriodDate);
+
+                if (employmentTerminationDate.isAfter(activePeriodDate) || employmentTerminationDate.equals(activePeriodDate)) {
+                    // If the start date is after the active period or exactly the same, set the status to "new"
+                    employeeData.put("employment_status", "leaving");
+                } else {
+                    // If the start date is before the active period, then it's considered "active"
+                    employeeData.put("employment_status", "terminated");
+                }
+            }
             String whereClause = "employee_id = ?";
 
-            JsonObject result = GenericQueries.update(connection, "employee", employeeData, whereClause,new Object[]{employeeID});
+           JsonObject result = GenericQueries.update(connection, "employee", employeeData, whereClause,new Object[]{employeeID});
 
             if (result.get("success").getAsBoolean()) {
                 System.out.println("Employee updated successfully. Rows affected: " + result.get("rowsAffected").getAsInt());

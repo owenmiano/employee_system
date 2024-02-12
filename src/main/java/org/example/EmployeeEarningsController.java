@@ -3,17 +3,12 @@ package org.example;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
-
 import java.sql.Connection;
 import java.sql.SQLException;
-import java.time.LocalDate;
-import java.time.Period;
 import java.time.YearMonth;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
-import java.util.Collections;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
 public class EmployeeEarningsController {
@@ -57,30 +52,81 @@ public class EmployeeEarningsController {
 
     //insert
 //
-    public static void createEmployeeEarnings(Connection connection, HashMap<String, Object> employeeEarningsData) {
-        if (employeeEarningsData == null) {
-            System.out.println("Employee eanings data is missing or incomplete.");
-            return;
-        }
-            Number amountNumber = (Number) employeeEarningsData.get("amount");
-            float amount = amountNumber.floatValue();
-        int periodId = (Integer) employeeEarningsData.get("period_id");
-//        int earningTypeId = (Integer) employeeEarningsData.get("earning_types_id");
-        Integer employeeId = (Integer) employeeEarningsData.get("employee_id");
+    public static void createEmployeeEarnings(Connection connection, int employeeId) {
+        boolean shouldCreateEarnings = true;
+        HashMap<String, Object> employeeEarningsData = new HashMap<>();
+        Integer earningTypeId = EarningsController.findEarningType(connection, "Basic Salary");
+        Map<String, String> periodInfo = PeriodController.fetchActivePeriod(connection);
+        int periodId = Integer.parseInt(periodInfo.get("period_id"));
+        employeeEarningsData.put("earning_types_id", earningTypeId);
+        employeeEarningsData.put("employee_id", employeeId);
+        employeeEarningsData.put("period_id", periodId);
 
+        try {
+            // Disable auto-commit to manually manage transactions
+            connection.setAutoCommit(false);
 
-        // Check if the employee has been working for at least 3 months
-        boolean isInserted = GenericQueries.insertData(connection, "employee_earnings", employeeEarningsData);
-        if (hasWorkedForThreeMonths(connection, employeeId)) {
-            // Calculate and add allowances based on the provided basic salary
-            calculateAndAddAllowances(connection, employeeId, amount, periodId);
-        }
-        if (isInserted) {
-            System.out.println("Employee earnings added successfully");
-        } else {
-            System.out.println("Failed to add employee salary");
+            if (EmployeeEarningsController.isEmployeeTerminated(connection, employeeId)) {
+                System.out.println("Cannot add salary for a terminated employee.");
+                shouldCreateEarnings = false;
+            }
+
+            // Proceed only if the employee is not terminated
+            if (shouldCreateEarnings && EmployeeEarningsController.checkForExistingEarningsRecord(connection, employeeId, earningTypeId)) {
+                float lastSalary = EmployeeEarningsController.fetchLastSalaryForEmployee(connection, employeeId, earningTypeId);
+                if (lastSalary > 0) {
+                    System.out.println("Last salary: " + lastSalary);
+                    float newSalary = lastSalary * 1.02f; // Apply the increase
+                    System.out.println("Updated salary: " + newSalary);
+                    employeeEarningsData.put("amount", newSalary);
+                } else {
+                    System.out.println("Last salary not greater than 0. Aborting operation.");
+                    shouldCreateEarnings = false; // Do not proceed with creating earnings
+                }
+            } else {
+                employeeEarningsData.put("amount", 50000); // Example default amount
+            }
+
+            boolean isInserted = false;
+            // Only insert data if shouldCreateEarnings is true
+            if (shouldCreateEarnings) {
+                isInserted = GenericQueries.insertData(connection, "employee_earnings", employeeEarningsData);
+                if (!isInserted) {
+                    throw new SQLException("Failed to insert employee earnings.");
+                }
+
+                if (EmployeeEarningsController.hasWorkedForThreeMonths(connection, employeeId)) {
+                    // Calculate and add allowances based on the provided basic salary
+                    Number amountNumber = (Number) employeeEarningsData.get("amount");
+                    float amount = amountNumber.floatValue();
+                    calculateAndAddAllowances(connection, employeeId, amount, periodId);
+                }
+            }
+
+            // Commit transaction if all operations were successful
+            connection.commit();
+            if (isInserted) {
+                System.out.println("Employee earnings added successfully");
+                // Trigger the getEmployeeEarnings method after successful earnings addition
+                EmployeeDeductionsController.getEmployeeEarnings(connection, employeeId, periodId);
+            }
+        } catch (Exception e) {
+            System.out.println("An error occurred here: " + e.getMessage());
+            try {
+                connection.rollback();
+                System.out.println("Transaction is rolled back.");
+            } catch (SQLException ex) {
+                System.out.println("Error during transaction rollback: " + ex.getMessage());
+            }
+        } finally {
+            try {
+                connection.setAutoCommit(true); // Restore auto-commit mode
+            } catch (SQLException e) {
+                System.out.println("Error restoring auto-commit mode: " + e.getMessage());
+            }
         }
     }
+
     public static boolean isEmployeeTerminated(Connection connection, int employeeId) {
         Map<String, String> activePeriodInfo = PeriodController.fetchActivePeriod(connection);
         String period = activePeriodInfo.get("period");
@@ -169,19 +215,19 @@ public class EmployeeEarningsController {
     }
 
 
-    private static void calculateAndAddAllowances(Connection connection, int employeeId, double basicSalary, int periodId) {
-        Map<String, Double> allowanceRates = new HashMap<>();
-        allowanceRates.put("Housing Allowance", 0.03);
-        allowanceRates.put("Transport Allowance", 0.015);
-        allowanceRates.put("Mortgage Allowance", 0.02);
+    private static void calculateAndAddAllowances(Connection connection, int employeeId, float basicSalary, int periodId) {
+        Map<String, Float> allowanceRates = new HashMap<>();
+        allowanceRates.put("Housing Allowance", 0.03f);
+        allowanceRates.put("Transport Allowance", 0.015f);
+        allowanceRates.put("Mortgage Allowance", 0.02f);
 
         // Iterate through each allowance type
-        for (Map.Entry<String, Double> allowanceEntry : allowanceRates.entrySet()) {
+        for (Map.Entry<String, Float> allowanceEntry : allowanceRates.entrySet()) {
             String allowanceDescription = allowanceEntry.getKey();
-            Double rate = allowanceEntry.getValue();
+            float rate = allowanceEntry.getValue();
 
             // Calculate allowance amount
-            double allowanceAmount = basicSalary * rate;
+            float allowanceAmount = basicSalary * rate;
 
             // Dynamically get the earning type ID based on description
             Integer earningTypeId = EarningsController.findEarningType(connection, allowanceDescription);
