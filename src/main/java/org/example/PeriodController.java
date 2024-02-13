@@ -121,8 +121,7 @@ public class PeriodController {
         // Subtract one month to get the previous month
         YearMonth previousMonth = activePeriodDate.minusMonths(1);
         String previousMonthStr = previousMonth.format(formatter);
-        System.out.println("Active Period Date: " + activePeriodDate);
-        System.out.println("Previous Month: " + previousMonth);
+
 
         try {
             String[] columns = {"period_id"};
@@ -134,7 +133,6 @@ public class PeriodController {
                 JsonElement firstElement = result.get(0);
                 if (firstElement != null && firstElement.isJsonObject()) {
                     JsonObject earningTypeObject = firstElement.getAsJsonObject();
-                    // Assuming 'earning_types_id' is the correct column name for the ID
                     return earningTypeObject.get("period_id").getAsInt();
 
                 }

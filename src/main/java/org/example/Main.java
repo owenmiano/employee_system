@@ -20,7 +20,7 @@ public class Main {
             try (Connection connection = dbManager.getConnection()) {
                 System.out.println("Database Connected successfully");
                 dbManager.createTables(connection);
-                modifyEmployee(connection);
+                Rollover.rollover(connection);
             }
 
         } catch (SQLException e) {
@@ -63,7 +63,7 @@ public class Main {
         companyData.put("reg_no", "BN-KYCZMHJU");
 
         String[] columns = {
-                "company_id", "name", "reg_no","industry","phone","email","website",
+                "name", "reg_no","industry","phone","email","website",
 
         };
 
@@ -104,7 +104,7 @@ public class Main {
         HashMap<String, Object> departmentData = new HashMap<>();
         departmentData.put("name", "Procurement");
 
-        int departmentID = 1;
+        int departmentID = 4;
         DepartmentController.updateDepartment(connection, departmentData,departmentID);
 
     }
@@ -163,37 +163,31 @@ public class Main {
     private static void addEmployee(Connection connection) {
         HashMap<String, Object> employeeData = new HashMap<>();
         employeeData.put("company_id", 1);
-        employeeData.put("employee_name", "Bob Omondi");
-        employeeData.put("employee_number", "SKY1314");
-        employeeData.put("id_number", "33445566");
-        employeeData.put("nssf_no", "010104040404041414");
-        employeeData.put("nhif_no", "2220394850");
-        employeeData.put("kra_pin", "A0126710G");
-        employeeData.put("phone", "0723456789");
-        employeeData.put("email", "bob90@gmail.com");
-        employeeData.put("date_of_birth", "1988-11-30");
-        employeeData.put("employment_start_date", "01-2022");
+        employeeData.put("employee_name", "Matilda Agwambo");
+        employeeData.put("employee_number", "SKY1315");
+        employeeData.put("id_number", "30034507");
+        employeeData.put("nssf_no", "010104040404041515");
+        employeeData.put("nhif_no", "2220390124");
+        employeeData.put("kra_pin", "A0190710G");
+        employeeData.put("phone", "0723452233");
+        employeeData.put("email", "matilda90@gmail.com");
+        employeeData.put("date_of_birth", "1989-09-30");
+        employeeData.put("employment_start_date", "09-2023");
         employeeData.put("employment_termination_date", null);
-        employeeData.put("employee_position", "IT Support Specialist");
-        employeeData.put("department_id", 4);
-        employeeData.put("gender", "Male");
-        employeeData.put("username", "bobby");
-        employeeData.put("password", "Bobby!2024$");
+        employeeData.put("employee_position", "Marketing Manager");
+        employeeData.put("department_id", 2);
+        employeeData.put("gender", "Female");
+        employeeData.put("username", "matilda");
+        employeeData.put("password", "Matilda!2024$");
+
 
         EmployeeController.createEmployee(connection, employeeData);
 
     }
     //    //    select company method
     private static void selectEmployee(Connection connection) {
-        HashMap<String, Object> employeeData = new HashMap<>();
-        employeeData.put("employee_number", "SKY1311");
-
-        String[] columns = {
-                "employee_name", "employee_number","id_number","nssf_no","nhif_no","kra_pin","phone","date_of_birth","employment_start_date",
-                "employment_termination_date","employee_position","gender","username"
-        };
-
-        EmployeeController.findEmployee(connection, employeeData,columns);
+        int employeeID = 2;
+        EmployeeController.findEmployee(connection, employeeID);
 
     }
     //    modify employee method
@@ -239,7 +233,7 @@ public class Main {
     //add Employee earnings  method
     private static void addEmployeeEarnings(Connection connection) {
 
-        int employeeId = 3;
+        int employeeId = 5;
         EmployeeEarningsController.createEmployeeEarnings(connection,employeeId);
 
     }
@@ -265,7 +259,7 @@ public class Main {
     // Deductions calculation method
     private static void addEmployeeReductions(Connection connection) {
         int employeeId=4;
-        Map<String, String> periodInfo = PeriodController.fetchActivePeriod(connection);
+            Map<String, String> periodInfo = PeriodController.fetchActivePeriod(connection);
         int periodId = Integer.parseInt(periodInfo.get("period_id"));
 
         EmployeeDeductionsController.getEmployeeEarnings(connection,employeeId,periodId);

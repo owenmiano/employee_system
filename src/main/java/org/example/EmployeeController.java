@@ -13,6 +13,8 @@ import java.sql.SQLException;
 import org.mindrot.jbcrypt.BCrypt;
 
 public class EmployeeController {
+    private static final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("MM-yyyy");
+
     private static boolean isValidEmail(String email) {
         String emailRegex = "^[a-zA-Z0-9_+&*-]+(?:\\.[a-zA-Z0-9_+&*-]+)*@(?:[a-zA-Z0-9-]+\\.)+[a-zA-Z]{2,7}$";
         Pattern pattern = Pattern.compile(emailRegex);
@@ -28,57 +30,35 @@ public class EmployeeController {
         return phoneNumber != null && phoneNumber.matches(phoneNumberRegex);
     }
 
-    public static void findEmployee(Connection connection, HashMap<String, Object> employeeData, String[] originalColumns) {
+    public static Map<String, String> findEmployee(Connection connection, int employeeID) {
         try {
-            if (employeeData == null || employeeData.isEmpty()) {
-                System.out.println("No employee data provided.");
-                return;
+            String whereClause = "employee_id = ?";
+            JsonArray result = GenericQueries.select(connection, "employee", whereClause, new Object[]{employeeID});
+            if (result.size() > 0) {
+                Map<String, String> employeeInfo = new HashMap<>();
+                JsonElement element = result.get(0); // Assuming you're interested in the first result
+                if (element != null && element.isJsonObject()) {
+                    JsonObject employeeObject = element.getAsJsonObject();
+                    employeeInfo.put("company_id", employeeObject.get("company_id").getAsString());
+                    employeeInfo.put("employee_name", employeeObject.get("employee_name").getAsString()); // Fixed typo in "employee_name"
+                    employeeInfo.put("id_number", employeeObject.get("id_number").getAsString());
+                    employeeInfo.put("nssf_no", employeeObject.get("nssf_no").getAsString());
+                    employeeInfo.put("kra_pin", employeeObject.get("kra_pin").getAsString());
+                    employeeInfo.put("phone", employeeObject.get("phone").getAsString());
+                    employeeInfo.put("email", employeeObject.get("email").getAsString());
+                    employeeInfo.put("date_of_birth", employeeObject.get("date_of_birth").getAsString());
+                    employeeInfo.put("employment_start_date", employeeObject.get("employment_start_date").getAsString());
+                    employeeInfo.put("employment_status", employeeObject.get("employment_status").getAsString());
+                    employeeInfo.put("employment_termination_date", employeeObject.get("employment_termination_date").isJsonNull() ? "N/A" : employeeObject.get("employment_termination_date").getAsString()); // Handle possible null
+                    return employeeInfo;
+                }
             }
-
-            // Initialize the list with the extended columns
-            ArrayList<String> columnsList = new ArrayList<>();
-            for (String column : originalColumns) {
-                // Prefix with "employee." to avoid ambiguity
-                columnsList.add("e." + column);
-            }
-
-            // Correctly add the company and department names
-            columnsList.add("c.name company_name");
-            columnsList.add("d.name department_name");
-
-            // Convert the ArrayList to an array for use in the query
-            String[] columns = columnsList.toArray(new String[0]);
-
-            // Adjust the joins to include the company and department tables
-            String[][] joins = {
-                    {"INNER", "company c", "e.company_id = c.company_id"},
-                    {"INNER", "department d", "e.department_id = d.department_id"}
-            };
-
-            // Construct the WHERE clause based on provided employeeData
-            StringJoiner whereClauseJoiner = new StringJoiner(" AND ");
-            ArrayList<Object> values = new ArrayList<>();
-            for (Map.Entry<String, Object> entry : employeeData.entrySet()) {
-                String key = "e." + entry.getKey(); // Qualify key with the employee table name to avoid ambiguity
-                whereClauseJoiner.add(key + " = ?");
-                values.add(entry.getValue());
-            }
-
-            String whereClause = whereClauseJoiner.toString();
-
-            // Assuming GenericQueries.select can handle joins, extended columns, and parameterized where clauses
-            JsonArray jsonArrayResult = GenericQueries.select(connection, "employee e", joins, columns, whereClause, values.toArray());
-
-            // Convert the result to JSON and print
-            String jsonResult = jsonArrayResult.toString();
-            System.out.println(jsonResult);
-
         } catch (Exception e) {
             System.out.println("An error occurred: " + e.getMessage());
             e.printStackTrace();
         }
+        return null; // Return null if no employee found or in case of an error
     }
-
 
 
     public static void createEmployee(Connection connection, HashMap<String, Object> employeeData) {
@@ -124,7 +104,6 @@ public class EmployeeController {
 
             String employmentStartDateStr = employeeData.get("employment_start_date").toString();
             // Assuming employment_start_date in employeeData and periods in database are in format "MM-yyyy"
-            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("MM-yyyy");
             YearMonth employmentStartDate = YearMonth.parse(employmentStartDateStr, formatter);
             YearMonth activePeriodDate = YearMonth.parse(period, formatter);
 
@@ -211,6 +190,8 @@ public class EmployeeController {
 
     public static void updateEmployee(Connection connection, HashMap<String, Object> employeeData, int employeeID) {
         try {
+            Map<String, String> employeeInfo = EmployeeController.findEmployee(connection,employeeID);
+            String employmentStartDate = employeeInfo.get("employment_start_date");
             if (employeeData == null || employeeData.isEmpty()) {
                 System.out.println("Employee data is missing or empty.");
                 return;
@@ -219,19 +200,21 @@ public class EmployeeController {
                 String termination = employeeData.get("employment_termination_date").toString();
                 Map<String, String> activePeriodInfo = PeriodController.fetchActivePeriod(connection);
                 String period = activePeriodInfo.get("period");
-                DateTimeFormatter formatter = DateTimeFormatter.ofPattern("MM-yyyy");
+                YearMonth employmentDate = YearMonth.parse(employmentStartDate, formatter);
                 YearMonth employmentTerminationDate = YearMonth.parse(termination, formatter);
                 YearMonth activePeriodDate = YearMonth.parse(period, formatter);
-                System.out.println("Employment termination date is provided: " + employmentTerminationDate);
-                System.out.println("Active period " + activePeriodDate);
 
-                if (employmentTerminationDate.isAfter(activePeriodDate) || employmentTerminationDate.equals(activePeriodDate)) {
-                    // If the start date is after the active period or exactly the same, set the status to "new"
-                    employeeData.put("employment_status", "leaving");
-                } else {
-                    // If the start date is before the active period, then it's considered "active"
-                    employeeData.put("employment_status", "terminated");
+                if (employmentTerminationDate.isBefore(employmentDate)) {
+                    // Handle the error: log, throw an exception, or correct the data
+                    System.err.println("Error: Termination date is before employment start date.");
+                    return;
                 }
+
+                if (employmentTerminationDate.equals(activePeriodDate)) {
+                    //if active period is equal to termination date set to leaving
+                    employeeData.put("employment_status", "leaving");
+                }
+
             }
             String whereClause = "employee_id = ?";
 

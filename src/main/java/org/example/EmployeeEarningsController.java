@@ -70,20 +70,20 @@ public class EmployeeEarningsController {
                 System.out.println("Cannot add salary for a terminated employee.");
                 shouldCreateEarnings = false;
             }
-
-            // Proceed only if the employee is not terminated
-            if (shouldCreateEarnings && EmployeeEarningsController.checkForExistingEarningsRecord(connection, employeeId, earningTypeId)) {
-                float lastSalary = EmployeeEarningsController.fetchLastSalaryForEmployee(connection, employeeId, earningTypeId);
+            Integer lastPaidPeriodId = fetchLastPaidPeriodId(connection, employeeId, earningTypeId);
+            if (lastPaidPeriodId != null) {
+                float lastSalary = EmployeeEarningsController.fetchLastSalaryForEmployee(connection, employeeId, earningTypeId, lastPaidPeriodId);
                 if (lastSalary > 0) {
-                    System.out.println("Last salary: " + lastSalary);
-                    float newSalary = lastSalary * 1.02f; // Apply the increase
-                    System.out.println("Updated salary: " + newSalary);
+                    // Apply the 2% salary increase
+                    float newSalary = lastSalary * 1.02f;
+
                     employeeEarningsData.put("amount", newSalary);
                 } else {
                     System.out.println("Last salary not greater than 0. Aborting operation.");
-                    shouldCreateEarnings = false; // Do not proceed with creating earnings
+                    shouldCreateEarnings = false;
                 }
             } else {
+                // No salary records found, set a default initial salary
                 employeeEarningsData.put("amount", 50000); // Example default amount
             }
 
@@ -140,35 +140,35 @@ public class EmployeeEarningsController {
         YearMonth terminationDate = YearMonth.parse(termination, formatter);
         YearMonth activePeriodDate = YearMonth.parse(period, formatter);
 
-        // Check if the employment start date is greater than the active period
-        return !terminationDate.isAfter(activePeriodDate);
+        return !activePeriodDate.isAfter(terminationDate);
     }
-    public static boolean checkForExistingEarningsRecord(Connection connection, int employeeId, int earningTypeId) {
+    public static Integer fetchLastPaidPeriodId(Connection connection, int employeeId, int earningTypeId) {
         try {
-            String whereClause = "earning_types_id = ? AND employee_id = ?";
-            Object[] params = new Object[]{earningTypeId, employeeId};
-            JsonArray answersReport = GenericQueries.select(connection, "employee_earnings", whereClause, params);
+            String whereClause = "employee_id = ? AND earning_types_id = ?";
+            Object[] params = new Object[]{employeeId, earningTypeId};
+            String orderByClause = "period_id DESC";
+            String[] columns = {"period_id"};
+            int limitClause = 1;
 
-            // Assuming the JsonArray is null or empty when no records are found
-            return answersReport != null && answersReport.size() > 0;
+            JsonArray result = GenericQueries.select(connection, "employee_earnings",columns,whereClause,orderByClause,limitClause,params);
+            if (result.size() > 0) {
+                JsonElement firstElement = result.get(0);
+                if (firstElement != null && firstElement.isJsonObject()) {
+                    JsonObject record = firstElement.getAsJsonObject();
+                    return record.get("period_id").getAsInt();
+                }
+            }
         } catch (Exception e) {
-            System.out.println("An error occurred: " + e.getMessage());
+            System.out.println("An error occurred while fetching the last paid period ID: " + e.getMessage());
             e.printStackTrace();
-            // Return false if an exception occurs, indicating no record found or an error in the process
-            return false;
         }
+        return null; // Return null if no record is found or in case of an error
     }
 
-    public static float fetchLastSalaryForEmployee(Connection connection, int employeeId, int earningTypeId) {
+    public static float fetchLastSalaryForEmployee(Connection connection, int employeeId, int earningTypeId, int periodId) {
         String[] columns = {"amount"};
-        Integer lastActivePeriod = PeriodController.fetchLastPeriodID(connection);
-        if (lastActivePeriod == null) {
-            System.out.println("Could not retrieve the last active period.");
-            return 0; // No period found
-        }
-
         String whereClause = "employee_id = ? AND earning_types_id = ? AND period_id = ?";
-        Object[] params = new Object[]{employeeId, earningTypeId, lastActivePeriod};
+        Object[] params = new Object[]{employeeId, earningTypeId, periodId};
 
         try {
             JsonArray result = GenericQueries.select(connection, "employee_earnings", columns, whereClause, params);
@@ -176,38 +176,35 @@ public class EmployeeEarningsController {
                 JsonElement firstElement = result.get(0);
                 if (firstElement != null && firstElement.isJsonObject()) {
                     JsonObject earningsObject = firstElement.getAsJsonObject();
-                    return earningsObject.get("amount").getAsFloat(); // Return amount if found
+                    return earningsObject.get("amount").getAsFloat(); // Return the amount if found
                 }
+            } else {
+                System.out.println("No earnings record found for the specified parameters.");
             }
-            System.out.println("No earnings record found for the specified parameters.");
         } catch (SQLException e) {
             System.out.println("An error occurred fetching the last salary: " + e.getMessage());
             e.printStackTrace();
         }
-        return 0; // Default return for no record found or error
+        return 0; // Default return for no record found or in case of an error
     }
 
 
 
+
     public static boolean hasWorkedForThreeMonths(Connection connection, int employeeId) {
-        // Assume these methods return dates in String format like "yyyy-MM-dd"
         String startDateStr = EmployeeController.fetchEmployeeStartDate(connection, employeeId);
         Map<String, String> activePeriodInfo = PeriodController.fetchActivePeriod(connection);
         String period = activePeriodInfo.get("period");
-
-        // Adjust based on your actual method
 
         if (startDateStr == null || period == null) {
             System.out.println("Start date or active period is missing.");
             return false;
         }
 
-        // Assuming startDateStr and activePeriodStr are actually in "yyyy-MM" format based on the initial question
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("MM-yyyy");
         YearMonth startDate = YearMonth.parse(startDateStr, formatter);
         YearMonth activePeriodDate = YearMonth.parse(period, formatter);
 
-        // Calculate the difference between the start date and the active period date
         long monthsBetween = ChronoUnit.MONTHS.between(startDate, activePeriodDate);
 
         // Check if the difference is at least three months

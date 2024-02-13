@@ -101,12 +101,12 @@ public class GenericQueries {
     }
 
     // Select with WHERE clause and GROUP BY
-    public static JsonArray select(Connection conn, String table, String where, String groupBy, Object... params) throws SQLException {
+
+    public static JsonArray select(Connection conn, String table, String where, String groupBy, boolean isGroupBy, Object... params) throws SQLException {
         return querySelect(conn, "SELECT * FROM " + table + " WHERE " + where + " GROUP BY " + groupBy, params);
     }
-
     // Select with WHERE clause, GROUP BY, and specific columns
-    public static JsonArray select(Connection conn, String table, String[] columns, String where, String groupBy, Object... params) throws SQLException {
+    public static JsonArray select(Connection conn, String table, String[] columns, String where,String groupBy,  boolean isGroupBy, Object... params) throws SQLException {
         String columnList = String.join(", ", columns);
         return querySelect(conn, "SELECT " + columnList + " FROM " + table + " WHERE " + where + " GROUP BY " + groupBy, params);
     }
@@ -115,6 +115,23 @@ public class GenericQueries {
     public static JsonArray select(Connection conn, String table, int limit, int offset) throws SQLException {
         return querySelect(conn, "SELECT * FROM " + table + " LIMIT " + limit + " OFFSET " + offset);
     }
+// Select with WHERE Clause and ORDER BY
+    public static JsonArray select(Connection conn, String table, String where, String orderBy, Object... params) throws SQLException {
+        return querySelect(conn, "SELECT * FROM " + table + " WHERE " + where + " ORDER BY " + orderBy, params);
+    }
+    //Select with WHERE Clause, ORDER BY, and Specific Columns
+    public static JsonArray select(Connection conn, String table, String[] columns, String where, String orderBy, Object... params) throws SQLException {
+        String columnsJoined = String.join(", ", columns);
+        String sql = "SELECT " + columnsJoined + " FROM " + table + " WHERE " + where + " ORDER BY " + orderBy;
+        return querySelect(conn, sql, params);
+    }
+    //Select with WHERE Clause, ORDER BY, Specific Columns, and LIMIT
+    public static JsonArray select(Connection conn, String table, String[] columns, String where, String orderBy, int limit, Object... params) throws SQLException {
+        String columnsJoined = String.join(", ", columns);
+        String sql = "SELECT " + columnsJoined + " FROM " + table + " WHERE " + where + " ORDER BY " + orderBy + " LIMIT " + limit;
+        return querySelect(conn, sql, params);
+    }
+
 
     //select with join
     public static JsonArray select(Connection conn, String baseTable, String[][] joins, String[] columns) throws SQLException {

@@ -2,9 +2,9 @@
     <database>
         <type>mysql</type>
         <name>employee_system</name>
-        <host>172.20.94.24</host>
+        <host>localhost</host>
         <port>3306</port>
-        <username ENCRYPTED="yes">BVyeRs/tpxJ3S2KEq9C+3g==</username>
-        <password ENCRYPTED="yes">gf+WU1r+azfuGIJ27IhyLg==</password>
+        <username ENCRYPTED="yes">PEayVNYSt8+/RbiYcib/VA==</username>
+        <password ENCRYPTED="yes">/6OOIEn8FvgIa1pl8rRxew==</password>
     </database>
 </configuration>
