@@ -2,6 +2,7 @@ package org.example;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import com.google.gson.JsonPrimitive;
 
 import java.sql.Connection;
 import java.sql.SQLException;
@@ -253,6 +254,48 @@ public static void generateEmployeeAllowancesAndNetSalariesReport(Connection con
         }
         return netSalary; // Return the found net salary or 0.0f if none was found or an error occurred
     }
+
+    public static void generateTotalNetSalaryReport(Connection connection, int periodId) {
+        try {
+            // Define the SQL query to fetch all employee IDs for a given period
+            String[] columns = {"employee_id"};
+            String whereClause = "period_id = ?";
+            Object[] params = new Object[]{periodId};
+
+            // Fetch all employee IDs for the given period
+            JsonArray employeeIds = GenericQueries.select(connection, "employee_earnings", columns, whereClause, params);
+            float totalNetSalary = 0.0f;
+
+            // Loop through each employee ID and calculate their net salary
+
+            for (JsonElement element : employeeIds) {
+                if (element != null && element.isJsonObject()) {
+                    JsonObject employee = element.getAsJsonObject();
+                    int employeeId = employee.get("employee_id").getAsInt();
+                    // Assuming a method to get the basic salary earning type ID
+                    int basicSalaryEarningTypeId = EarningsController.findEarningType(connection, "Basic Salary");
+                    // Calculate net salary for each employee
+                    float netSalary = getNetSalary(connection, employeeId, periodId, basicSalaryEarningTypeId);
+                    System.out.println("Total Net Salary for period ID " + periodId + ": " + netSalary + "EmployeeId: " + employeeId);
+                    totalNetSalary += netSalary;
+
+                }
+            }
+
+            // Print or return the total net salary report
+            String periodName = PeriodController.fetchPeriod(connection, periodId);
+
+            JsonObject finalReport = new JsonObject();
+            finalReport.add("period", new JsonPrimitive(periodName));
+            finalReport.addProperty("total_net_salary", totalNetSalary);
+
+            System.out.println(finalReport.toString());
+        } catch (Exception e) {
+            System.out.println("An error occurred while generating the total net salary report: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+
 
 
 }

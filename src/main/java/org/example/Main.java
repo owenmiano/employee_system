@@ -7,7 +7,7 @@ import java.nio.file.Paths;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.HashMap;
-import java.util.Map;
+
 
 
 public class Main {
@@ -19,7 +19,7 @@ public class Main {
             try (Connection connection = dbManager.getConnection()) {
                 System.out.println("Database Connected successfully");
                 dbManager.createTables(connection);
-                Rollover.rollover(connection);
+                displayTotalNetSalary(connection);
             }
 
         } catch (SQLException e) {
@@ -191,9 +191,9 @@ public class Main {
     //    modify employee method
     private static void modifyEmployee(Connection connection) {
         HashMap<String, Object> employeeData = new HashMap<>();
-        employeeData.put("employment_termination_date", "08-2023");
+        employeeData.put("employment_termination_date", "09-2023");
 
-        int employeeID = 3;
+        int employeeID = 2;
         EmployeeController.updateEmployee(connection, employeeData,employeeID);
 
     }
@@ -281,5 +281,11 @@ public class Main {
         int departmentId=4;
         int periodId=1;
         Reports.generateEmployeeAllowancesAndNetSalariesReport(connection,departmentId,periodId);
+    }
+
+    //Generate a report on the total allowances and net salaries of each employee in a department.
+    private static void displayTotalNetSalary(Connection connection) {
+        int periodId=1;
+        Reports.generateTotalNetSalaryReport(connection,periodId);
     }
 }
