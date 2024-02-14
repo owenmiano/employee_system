@@ -40,7 +40,8 @@ public class EmployeeController {
                 if (element != null && element.isJsonObject()) {
                     JsonObject employeeObject = element.getAsJsonObject();
                     employeeInfo.put("company_id", employeeObject.get("company_id").getAsString());
-                    employeeInfo.put("employee_name", employeeObject.get("employee_name").getAsString()); // Fixed typo in "employee_name"
+                    employeeInfo.put("employee_name", employeeObject.get("employee_name").getAsString());
+                    employeeInfo.put("employee_number", employeeObject.get("employee_number").getAsString());
                     employeeInfo.put("id_number", employeeObject.get("id_number").getAsString());
                     employeeInfo.put("nssf_no", employeeObject.get("nssf_no").getAsString());
                     employeeInfo.put("kra_pin", employeeObject.get("kra_pin").getAsString());
@@ -154,7 +155,7 @@ public class EmployeeController {
             System.out.println("An error occurred fetching the termination date: " + e.getMessage());
         }
 
-        return null; // Return null if no termination date is found or in case of an error
+        return null;
     }
 
     public static String fetchEmployeeStartDate(Connection connection, int employeeId) {
@@ -211,8 +212,9 @@ public class EmployeeController {
                 }
 
                 if (employmentTerminationDate.equals(activePeriodDate)) {
-                    //if active period is equal to termination date set to leaving
                     employeeData.put("employment_status", "leaving");
+                } else if (activePeriodDate.isAfter(employmentTerminationDate)) {
+                    employeeData.put("employment_status", "terminated");
                 }
 
             }

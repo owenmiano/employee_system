@@ -56,7 +56,6 @@ public class GenericQueries {
             try (ResultSet rs = pstmt.executeQuery()) {
                 ResultSetMetaData metaData = rs.getMetaData();
                 int columnCount = metaData.getColumnCount();
-
                 while (rs.next()) {
                     JsonObject obj = new JsonObject();
                     for (int i = 1; i <= columnCount; i++) {

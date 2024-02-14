@@ -98,17 +98,18 @@ public class Rollover {
     public static String updateEmploymentStatus(Connection connection) {
         Map<String, String> activePeriodInfo = PeriodController.fetchActivePeriod(connection);
         String period = activePeriodInfo.get("period");
-        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("MM-yyyy"); // Ensure this matches your date format
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("MM-yyyy");
         YearMonth activePeriodDate = YearMonth.parse(period, formatter);
 
         String[] columns = {"employee_id", "employment_start_date", "employment_termination_date", "employment_status"};
         try {
-            JsonArray result = GenericQueries.select(connection, "employee", columns); // Assuming a modified select method
+            JsonArray result = GenericQueries.select(connection, "employee", columns);
             if (result.size() > 0) {
                 for (JsonElement element : result) {
                     if (element != null && element.isJsonObject()) {
                         JsonObject employeeObject = element.getAsJsonObject();
                         int employeeId = employeeObject.get("employee_id").getAsInt();
+                        String currentEmploymentStatus = employeeObject.get("employment_status").getAsString();
 
                         // Extract the start and termination dates
                         String startDateStr = employeeObject.get("employment_start_date").getAsString();
@@ -125,14 +126,18 @@ public class Rollover {
                         HashMap<String, Object> updateData = new HashMap<>();
                         String whereClause = "employee_id = ?";
 
-                        if (employeeTerminationDate != null && !activePeriodDate.isBefore(employeeTerminationDate)) {
-                            // If active period is equal to or after termination date, set to "terminated"
-                            updateData.put("employment_status", "terminated");
-                        } else if (employeeTerminationDate == null && employeeStartDate.isBefore(activePeriodDate)) {
-                            // If no termination date and start date is before active period, set to "active"
+                        if (employeeTerminationDate != null) {
+                            if (!"terminated".equalsIgnoreCase(currentEmploymentStatus)) {
+                                if (employeeTerminationDate.equals(activePeriodDate)) {
+                                    updateData.put("employment_status", "leaving");
+                                } else if (activePeriodDate.isAfter(employeeTerminationDate)) {
+                                    updateData.put("employment_status", "terminated");
+                                }
+                            }
+                        }
+                        else if (employeeTerminationDate == null && employeeStartDate.isBefore(activePeriodDate)) {
                             updateData.put("employment_status", "active");
                         }
-
                         if (!updateData.isEmpty()) {
                             GenericQueries.update(connection, "employee", updateData, whereClause, new Object[]{employeeId});
                         }
@@ -149,7 +154,6 @@ public class Rollover {
     }
 
     public static void updatePayments(Connection connection) {
-
             String[] columns = {"employee_id"};
             try {
                 JsonArray result = GenericQueries.select(connection, "employee", columns); // Assuming a modified select method

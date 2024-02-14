@@ -9,8 +9,7 @@ import java.sql.SQLException;
 import java.util.HashMap;
 import java.util.Map;
 
-// Press Shift twice to open the Search Everywhere dialog and type `show whitespaces`,
-// then press Enter. You can now see whitespace characters in your code.
+
 public class Main {
     public static void main(String[] args) {
         File configFile = getConfigFile();
@@ -180,11 +179,10 @@ public class Main {
         employeeData.put("username", "matilda");
         employeeData.put("password", "Matilda!2024$");
 
-
         EmployeeController.createEmployee(connection, employeeData);
 
     }
-    //    //    select company method
+    // select company method
     private static void selectEmployee(Connection connection) {
         int employeeID = 2;
         EmployeeController.findEmployee(connection, employeeID);
@@ -193,9 +191,9 @@ public class Main {
     //    modify employee method
     private static void modifyEmployee(Connection connection) {
         HashMap<String, Object> employeeData = new HashMap<>();
-        employeeData.put("employment_termination_date", "09-2023");
+        employeeData.put("employment_termination_date", "08-2023");
 
-        int employeeID = 2;
+        int employeeID = 3;
         EmployeeController.updateEmployee(connection, employeeData,employeeID);
 
     }
@@ -211,13 +209,9 @@ public class Main {
     }
     //     select period method
     private static void selectPeriod(Connection connection) {
-        HashMap<String, Object> periodData = new HashMap<>();
-        periodData.put("period", "08-2023");
-        periodData.put("status", "Active");
+            int periodId=1;
 
-        String[] columns = {"period","status"};
-
-        PeriodController.findPeriod(connection, periodData,columns);
+        PeriodController.fetchPeriod(connection, periodId);
 
     }
     //    modify period method
@@ -234,7 +228,7 @@ public class Main {
     private static void addEmployeeEarnings(Connection connection) {
 
         int employeeId = 5;
-        EmployeeEarningsController.createEmployeeEarnings(connection,employeeId);
+      EmployeeEarningsController.createEmployeeEarnings(connection,employeeId);
 
     }
 
@@ -257,11 +251,35 @@ public class Main {
     }
 
     // Deductions calculation method
-    private static void addEmployeeReductions(Connection connection) {
-        int employeeId=4;
-            Map<String, String> periodInfo = PeriodController.fetchActivePeriod(connection);
-        int periodId = Integer.parseInt(periodInfo.get("period_id"));
+//    private static void addEmployeeReductions(Connection connection) {
+//        int employeeId=4;
+//            Map<String, String> periodInfo = PeriodController.fetchActivePeriod(connection);
+//        int periodId = Integer.parseInt(periodInfo.get("period_id"));
+//
+//        EmployeeDeductionsController.getEmployeeEarnings(connection,employeeId,periodId);
+//    }
 
-        EmployeeDeductionsController.getEmployeeEarnings(connection,employeeId,periodId);
+    //Reports section
+    //Display the total number of active employees in a department
+    private static void countActiveEmployees(Connection connection) {
+        int departmentId=4;
+
+
+        Reports.displayActiveEmployeeCountsByDepartment(connection,departmentId);
+    }
+
+    //Generate a report on the total earnings of an employee and total deductions as well as their net pay.
+    private static void displayemployeeEarningsDeductions(Connection connection) {
+        int employeeId=1;
+        int periodId=1;
+
+        Reports.generateEmployeeEarningsAndDeductionsReport(connection,employeeId,periodId);
+    }
+
+    //Generate a report on the total allowances and net salaries of each employee in a department.
+    private static void displayEmployeeTotalAllowancesAndNetSalaries(Connection connection) {
+        int departmentId=4;
+        int periodId=1;
+        Reports.generateEmployeeAllowancesAndNetSalariesReport(connection,departmentId,periodId);
     }
 }

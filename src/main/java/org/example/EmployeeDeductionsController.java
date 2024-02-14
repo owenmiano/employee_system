@@ -9,32 +9,9 @@ import java.util.HashMap;
 import java.util.Map;
 
 public class EmployeeDeductionsController {
-    public static float getEmployeeEarnings(Connection connection, int employeeId, int periodId) {
-        float totalEarnings = 0.0f;
-        String whereClause = "period_id = ? AND employee_id = ?";
-        Object[] params = new Object[]{periodId, employeeId};
 
-        try {
-            JsonArray earningsRecords = GenericQueries.select(connection, "employee_earnings", new String[]{"amount"}, whereClause, params);
-            for (JsonElement element : earningsRecords) {
-                if (element != null && element.isJsonObject()) {
-                    JsonObject earningsObject = element.getAsJsonObject();
-                    if (earningsObject.has("amount")) {
-                        totalEarnings += earningsObject.get("amount").getAsFloat();
-                    }
-                }
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
-            System.out.println("An error occurred while fetching employee earnings: " + e.getMessage());
-        }
-
-        // Calculate deductions only after successfully fetching earnings
-        calculateDeductions(connection, employeeId, totalEarnings, periodId);
-        return totalEarnings;
-    }
-
-    private static void calculateDeductions(Connection connection, int employeeId, float totalEarnings, int periodId) {
+    public static void calculateDeductions(Connection connection, int employeeId, int periodId) {
+        float totalEarnings=EmployeeEarningsController.getTotalEmployeeEarningsById(connection,employeeId,periodId);
         float nhifDeduction = 500.0f;
         float nssfDeduction = 700.0f;
         boolean allDeductionsInserted = true;
@@ -68,6 +45,29 @@ public class EmployeeDeductionsController {
             System.out.println(deductionType + " type not found for employee ID: " + employeeId);
             return false;
         }
+    }
+
+    public static float getTotalDeductionsForEmployee(Connection connection, int employeeId, int periodId) {
+        float totalDeductions = 0.0f;
+        String whereClause = "period_id = ? AND employee_id = ?";
+        Object[] params = new Object[]{periodId, employeeId};
+
+        try {
+            JsonArray earningsRecords = GenericQueries.select(connection, "employee_deductions", new String[]{"amount"}, whereClause, params);
+            for (JsonElement element : earningsRecords) {
+                if (element != null && element.isJsonObject()) {
+                    JsonObject earningsObject = element.getAsJsonObject();
+                    if (earningsObject.has("amount")) {
+                        totalDeductions += earningsObject.get("amount").getAsFloat();
+                    }
+                }
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            System.out.println("An error occurred while fetching employee earnings: " + e.getMessage());
+        }
+
+        return totalDeductions;
     }
 
 

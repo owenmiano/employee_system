@@ -51,81 +51,67 @@ public class EmployeeEarningsController {
     }
 
     //insert
-//
     public static void createEmployeeEarnings(Connection connection, int employeeId) {
-        boolean shouldCreateEarnings = true;
-        HashMap<String, Object> employeeEarningsData = new HashMap<>();
-        Integer earningTypeId = EarningsController.findEarningType(connection, "Basic Salary");
-        Map<String, String> periodInfo = PeriodController.fetchActivePeriod(connection);
-        int periodId = Integer.parseInt(periodInfo.get("period_id"));
-        employeeEarningsData.put("earning_types_id", earningTypeId);
-        employeeEarningsData.put("employee_id", employeeId);
-        employeeEarningsData.put("period_id", periodId);
-
         try {
-            // Disable auto-commit to manually manage transactions
-            connection.setAutoCommit(false);
+            HashMap<String, Object> employeeEarningsData = new HashMap<>();
+            Integer earningTypeId = EarningsController.findEarningType(connection, "Basic Salary");
+            if (earningTypeId == null) {
+                System.out.println("Basic Salary earning type not found.");
+                return;
+            }
+
+            Map<String, String> periodInfo = PeriodController.fetchActivePeriod(connection);
+            if (periodInfo == null || periodInfo.isEmpty()) {
+                System.out.println("Active period not found.");
+                return;
+            }
+            int periodId = Integer.parseInt(periodInfo.get("period_id"));
+
+            employeeEarningsData.put("earning_types_id", earningTypeId);
+            employeeEarningsData.put("employee_id", employeeId);
+            employeeEarningsData.put("period_id", periodId);
 
             if (EmployeeEarningsController.isEmployeeTerminated(connection, employeeId)) {
-                System.out.println("Cannot add salary for a terminated employee.");
-                shouldCreateEarnings = false;
+                return;
             }
+
             Integer lastPaidPeriodId = fetchLastPaidPeriodId(connection, employeeId, earningTypeId);
             if (lastPaidPeriodId != null) {
                 float lastSalary = EmployeeEarningsController.fetchLastSalaryForEmployee(connection, employeeId, earningTypeId, lastPaidPeriodId);
                 if (lastSalary > 0) {
-                    // Apply the 2% salary increase
-                    float newSalary = lastSalary * 1.02f;
-
+                    float newSalary = lastSalary * 1.02f; // Apply the 2% salary increase
                     employeeEarningsData.put("amount", newSalary);
                 } else {
-                    System.out.println("Last salary not greater than 0. Aborting operation.");
-                    shouldCreateEarnings = false;
+                    return;
                 }
             } else {
-                // No salary records found, set a default initial salary
-                employeeEarningsData.put("amount", 50000); // Example default amount
+                employeeEarningsData.put("amount", 50000);
             }
 
-            boolean isInserted = false;
-            // Only insert data if shouldCreateEarnings is true
-            if (shouldCreateEarnings) {
-                isInserted = GenericQueries.insertData(connection, "employee_earnings", employeeEarningsData);
-                if (!isInserted) {
-                    throw new SQLException("Failed to insert employee earnings.");
-                }
-
-                if (EmployeeEarningsController.hasWorkedForThreeMonths(connection, employeeId)) {
-                    // Calculate and add allowances based on the provided basic salary
-                    Number amountNumber = (Number) employeeEarningsData.get("amount");
-                    float amount = amountNumber.floatValue();
-                    calculateAndAddAllowances(connection, employeeId, amount, periodId);
-                }
+            boolean isInserted = GenericQueries.insertData(connection, "employee_earnings", employeeEarningsData);
+            if (!isInserted) {
+                System.out.println("Failed to insert employee earnings.");
+                return;
             }
 
-            // Commit transaction if all operations were successful
-            connection.commit();
+            if (EmployeeEarningsController.hasWorkedForThreeMonths(connection, employeeId)) {
+                // Calculate and add allowances based on the provided basic salary
+                Number amountNumber = (Number) employeeEarningsData.get("amount");
+                float amount = amountNumber.floatValue();
+                calculateAndAddAllowances(connection, employeeId, amount, periodId);
+            }
+
             if (isInserted) {
                 System.out.println("Employee earnings added successfully");
-                // Trigger the getEmployeeEarnings method after successful earnings addition
-                EmployeeDeductionsController.getEmployeeEarnings(connection, employeeId, periodId);
+                EmployeeDeductionsController.calculateDeductions(connection, employeeId, periodId);
             }
         } catch (Exception e) {
-            System.out.println("An error occurred here: " + e.getMessage());
-            try {
-                connection.rollback();
-                System.out.println("Transaction is rolled back.");
-            } catch (SQLException ex) {
-                System.out.println("Error during transaction rollback: " + ex.getMessage());
-            }
-        } finally {
-            try {
-                connection.setAutoCommit(true); // Restore auto-commit mode
-            } catch (SQLException e) {
-                System.out.println("Error restoring auto-commit mode: " + e.getMessage());
-            }
+            System.out.println("An error occurred: " + e.getMessage());
+            e.printStackTrace();
         }
     }
+
+
 
     public static boolean isEmployeeTerminated(Connection connection, int employeeId) {
         Map<String, String> activePeriodInfo = PeriodController.fetchActivePeriod(connection);
@@ -140,7 +126,7 @@ public class EmployeeEarningsController {
         YearMonth terminationDate = YearMonth.parse(termination, formatter);
         YearMonth activePeriodDate = YearMonth.parse(period, formatter);
 
-        return !activePeriodDate.isAfter(terminationDate);
+        return activePeriodDate.isAfter(terminationDate);
     }
     public static Integer fetchLastPaidPeriodId(Connection connection, int employeeId, int earningTypeId) {
         try {
@@ -274,5 +260,28 @@ public class EmployeeEarningsController {
             System.out.println("An error occurred: " + e.getMessage());
             e.printStackTrace();
         }
+    }
+
+    public static float getTotalEmployeeEarningsById(Connection connection, int employeeId, int periodId) {
+        float totalEarnings = 0.0f;
+        String whereClause = "period_id = ? AND employee_id = ?";
+        Object[] params = new Object[]{periodId, employeeId};
+
+        try {
+            JsonArray earningsRecords = GenericQueries.select(connection, "employee_earnings", new String[]{"amount"}, whereClause, params);
+            for (JsonElement element : earningsRecords) {
+                if (element != null && element.isJsonObject()) {
+                    JsonObject earningsObject = element.getAsJsonObject();
+                    if (earningsObject.has("amount")) {
+                        totalEarnings += earningsObject.get("amount").getAsFloat();
+                    }
+                }
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            System.out.println("An error occurred while fetching employee earnings: " + e.getMessage());
+        }
+
+        return totalEarnings;
     }
 }
