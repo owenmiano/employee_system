@@ -162,7 +162,7 @@ public class Rollover {
                         if (element != null && element.isJsonObject()) {
                             JsonObject employeeObject = element.getAsJsonObject();
                             int employeeId = employeeObject.get("employee_id").getAsInt();
-                            EmployeeEarningsController.createEmployeeEarnings(connection,employeeId);
+                            EmployeeEarningsController.updateEarnings(connection,employeeId);
                         }
                     }
                 }

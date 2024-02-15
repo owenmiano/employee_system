@@ -104,17 +104,36 @@ public class EmployeeController {
             }
 
             String employmentStartDateStr = employeeData.get("employment_start_date").toString();
-            // Assuming employment_start_date in employeeData and periods in database are in format "MM-yyyy"
+            String employmentTerminationDateStr = null;
+            if (employeeData.get("employment_termination_date") != null) {
+                employmentTerminationDateStr = employeeData.get("employment_termination_date").toString();
+            }
             YearMonth employmentStartDate = YearMonth.parse(employmentStartDateStr, formatter);
             YearMonth activePeriodDate = YearMonth.parse(period, formatter);
+            YearMonth employmentTerminationDate = null;
 
-            // Check if the employment start date is greater than the active period
+            if (employmentTerminationDateStr != null) {
+                employmentTerminationDate = YearMonth.parse(employmentTerminationDateStr, formatter);
+                if (employmentTerminationDate.isBefore(employmentStartDate)) {
+                    // Handle the error: log, throw an exception, or correct the data
+                    System.err.println("Error: Termination date is before employment start date.");
+                    return;
+                }
+            }
+
+// Check if the employee is new or active based on the start date
             if (employmentStartDate.isAfter(activePeriodDate) || employmentStartDate.equals(activePeriodDate)) {
-                // If the start date is after the active period or exactly the same, set the status to "new"
+                // If the start date is after the active period, mark as "new"
                 employeeData.put("employment_status", "new");
             } else {
                 // If the start date is before the active period, then it's considered "active"
                 employeeData.put("employment_status", "active");
+            }
+
+            if (employmentTerminationDate != null) {
+                if (employmentTerminationDate.equals(activePeriodDate)) {
+                    employeeData.put("employment_status", "leaving");
+                }
             }
 
             boolean isInserted = GenericQueries.insertData(connection, "employee", employeeData);

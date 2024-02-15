@@ -51,7 +51,67 @@ public class EmployeeEarningsController {
     }
 
     //insert
-    public static void createEmployeeEarnings(Connection connection, int employeeId) {
+    public static void createEmployeeEarnings(Connection connection, int employeeId,float amount) {
+        try {
+            HashMap<String, Object> employeeEarningsData = new HashMap<>();
+            Integer earningTypeId = EarningsController.findEarningType(connection, "Basic Salary");
+            if (earningTypeId == null) {
+                System.out.println("Basic Salary earning type not found.");
+                return;
+            }
+
+            Map<String, String> periodInfo = PeriodController.fetchActivePeriod(connection);
+            if (periodInfo == null || periodInfo.isEmpty()) {
+                System.out.println("Active period not found.");
+                return;
+            }
+            int periodId = Integer.parseInt(periodInfo.get("period_id"));
+
+            employeeEarningsData.put("earning_types_id", earningTypeId);
+            employeeEarningsData.put("employee_id", employeeId);
+            employeeEarningsData.put("amount", amount);
+            employeeEarningsData.put("period_id", periodId);
+
+            if (EmployeeEarningsController.isEmployeeTerminated(connection, employeeId)) {
+                return;
+            }
+
+            Integer lastPaidPeriodId = fetchLastPaidPeriodId(connection, employeeId, earningTypeId);
+            if (lastPaidPeriodId != null) {
+                // If here, it means the employee already has an earnings record
+                String periodName = PeriodController.fetchPeriod(connection, periodId);
+                Map<String, String> employeeInfo = EmployeeController.findEmployee(connection, employeeId);
+                if (employeeInfo != null && !employeeInfo.isEmpty()) {
+                    String employeeName = employeeInfo.get("employee_name");
+
+                    System.out.println("Earnings record already exists for employee: " + employeeName + " in this period: " + periodName);
+                  return;
+                }
+            }
+
+            boolean isInserted = GenericQueries.insertData(connection, "employee_earnings", employeeEarningsData);
+            if (!isInserted) {
+                System.out.println("Failed to insert employee earnings.");
+                return;
+            }
+
+            if (EmployeeEarningsController.hasWorkedForThreeMonths(connection, employeeId)) {
+                // Calculate and add allowances based on the provided basic salary
+
+                calculateAndAddAllowances(connection, employeeId, amount, periodId);
+            }
+
+            if (isInserted) {
+                System.out.println("Employee earnings added successfully");
+                EmployeeDeductionsController.calculateDeductions(connection, employeeId, periodId);
+            }
+        } catch (Exception e) {
+            System.out.println("An error occurred: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+
+    public static void updateEarnings(Connection connection, int employeeId) {
         try {
             HashMap<String, Object> employeeEarningsData = new HashMap<>();
             Integer earningTypeId = EarningsController.findEarningType(connection, "Basic Salary");
@@ -78,19 +138,25 @@ public class EmployeeEarningsController {
             Integer lastPaidPeriodId = fetchLastPaidPeriodId(connection, employeeId, earningTypeId);
             if (lastPaidPeriodId != null) {
                 float lastSalary = EmployeeEarningsController.fetchLastSalaryForEmployee(connection, employeeId, earningTypeId, lastPaidPeriodId);
-                if (lastSalary > 0) {
+
                     float newSalary = lastSalary * 1.02f; // Apply the 2% salary increase
                     employeeEarningsData.put("amount", newSalary);
-                } else {
-                    return;
-                }
-            } else {
-                employeeEarningsData.put("amount", 50000);
+
+            }else {
+
+                        Map<String, String> employeeInfo = EmployeeController.findEmployee(connection, employeeId);
+                        if (employeeInfo != null && !employeeInfo.isEmpty()) {
+                            String employeeName = employeeInfo.get("employee_name");
+                            String employeeNumber = employeeInfo.get("employee_number");
+                            System.out.println("Please initialize payment for employee: " + employeeName + " | Employee Number: " + employeeNumber);
+
+                        }
+
             }
 
-            boolean isInserted = GenericQueries.insertData(connection, "employee_earnings", employeeEarningsData);
-            if (!isInserted) {
-                System.out.println("Failed to insert employee earnings.");
+            boolean isUpdated = GenericQueries.insertData(connection, "employee_earnings", employeeEarningsData);
+            if (!isUpdated) {
+                System.out.println("Failed to Update employee earnings.");
                 return;
             }
 
@@ -101,8 +167,8 @@ public class EmployeeEarningsController {
                 calculateAndAddAllowances(connection, employeeId, amount, periodId);
             }
 
-            if (isInserted) {
-                System.out.println("Employee earnings added successfully");
+            if (isUpdated) {
+                System.out.println("Employee earnings updated successfully");
                 EmployeeDeductionsController.calculateDeductions(connection, employeeId, periodId);
             }
         } catch (Exception e) {
@@ -110,8 +176,6 @@ public class EmployeeEarningsController {
             e.printStackTrace();
         }
     }
-
-
 
     public static boolean isEmployeeTerminated(Connection connection, int employeeId) {
         Map<String, String> activePeriodInfo = PeriodController.fetchActivePeriod(connection);

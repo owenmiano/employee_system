@@ -162,22 +162,22 @@ public class Main {
     private static void addEmployee(Connection connection) {
         HashMap<String, Object> employeeData = new HashMap<>();
         employeeData.put("company_id", 1);
-        employeeData.put("employee_name", "Matilda Agwambo");
-        employeeData.put("employee_number", "SKY1315");
-        employeeData.put("id_number", "30034507");
-        employeeData.put("nssf_no", "010104040404041515");
-        employeeData.put("nhif_no", "2220390124");
-        employeeData.put("kra_pin", "A0190710G");
-        employeeData.put("phone", "0723452233");
-        employeeData.put("email", "matilda90@gmail.com");
-        employeeData.put("date_of_birth", "1989-09-30");
-        employeeData.put("employment_start_date", "09-2023");
+        employeeData.put("employee_name", "Sharon Mwangi");
+        employeeData.put("employee_number", "SKY1316");
+        employeeData.put("id_number", "30032109");
+        employeeData.put("nssf_no", "010104040404022312");
+        employeeData.put("nhif_no", "2234560124");
+        employeeData.put("kra_pin", "A0120710G");
+        employeeData.put("phone", "0721786888");
+        employeeData.put("email", "sharon90@gmail.com");
+        employeeData.put("date_of_birth", "1978-09-30");
+        employeeData.put("employment_start_date", "07-2023");
         employeeData.put("employment_termination_date", null);
-        employeeData.put("employee_position", "Marketing Manager");
-        employeeData.put("department_id", 2);
+        employeeData.put("employee_position", "HR Manager");
+        employeeData.put("department_id", 1);
         employeeData.put("gender", "Female");
-        employeeData.put("username", "matilda");
-        employeeData.put("password", "Matilda!2024$");
+        employeeData.put("username", "sharon");
+        employeeData.put("password", "Sharon!2024$");
 
         EmployeeController.createEmployee(connection, employeeData);
 
@@ -191,9 +191,9 @@ public class Main {
     //    modify employee method
     private static void modifyEmployee(Connection connection) {
         HashMap<String, Object> employeeData = new HashMap<>();
-        employeeData.put("employment_termination_date", "09-2023");
+        employeeData.put("employment_termination_date", "08-2023");
 
-        int employeeID = 2;
+        int employeeID = 3;
         EmployeeController.updateEmployee(connection, employeeData,employeeID);
 
     }
@@ -227,8 +227,9 @@ public class Main {
     //add Employee earnings  method
     private static void addEmployeeEarnings(Connection connection) {
 
-        int employeeId = 5;
-      EmployeeEarningsController.createEmployeeEarnings(connection,employeeId);
+        int employeeId = 6;
+        float amount=60000;
+      EmployeeEarningsController.createEmployeeEarnings(connection,employeeId,amount);
 
     }
 
@@ -271,7 +272,7 @@ public class Main {
     //Generate a report on the total earnings of an employee and total deductions as well as their net pay.
     private static void displayemployeeEarningsDeductions(Connection connection) {
         int employeeId=1;
-        int periodId=1;
+        int periodId=2;
 
         Reports.generateEmployeeEarningsAndDeductionsReport(connection,employeeId,periodId);
     }
@@ -279,13 +280,19 @@ public class Main {
     //Generate a report on the total allowances and net salaries of each employee in a department.
     private static void displayEmployeeTotalAllowancesAndNetSalaries(Connection connection) {
         int departmentId=4;
-        int periodId=1;
+        int periodId=2;
         Reports.generateEmployeeAllowancesAndNetSalariesReport(connection,departmentId,periodId);
     }
 
     //Generate a report on the total allowances and net salaries of each employee in a department.
     private static void displayTotalNetSalary(Connection connection) {
-        int periodId=1;
+        int periodId=2;
         Reports.generateTotalNetSalaryReport(connection,periodId);
+    }
+
+    //Generate a report on the history of payment i.e. total earnings, total PAYE, total net salary for an employee in each of the months prior to the current month.
+    private static void displayEmployeHistoryPayment(Connection connection) {
+        int employeeId=1;
+        Reports.generatePaymentHistoryReport(connection,employeeId);
     }
 }
