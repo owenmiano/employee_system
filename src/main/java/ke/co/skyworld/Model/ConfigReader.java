@@ -1,7 +1,6 @@
-package org.example;
+package ke.co.skyworld.Model;
 
 import java.io.File;
-import java.io.IOException;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
@@ -23,16 +22,40 @@ import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.Node;
 
-public class DatabaseConnectionManager {
+public class ConfigReader {
     private static final byte[] secretKey = "aiajd9292UA7HK38381JSHA393JAKASt".getBytes(StandardCharsets.UTF_8);
-    private DatabaseConfig dbConfig;
+    private static String dbType;
+    private String dbName;
+    private String dbHost;
+    private int dbPort;
+    private String username;
+    private String password;
+    private static String serverHost;
+    private static int serverPort;
 
-    public DatabaseConnectionManager(File configFile) {
-        this.dbConfig = new DatabaseConfig();
+    public void setDbType(String dbType) { this.dbType = dbType; }
+    public void setDbName(String dbName) { this.dbName = dbName; }
+    public void setDbHost(String dbHost) { this.dbHost = dbHost; }
+    public void setDbPort(int dbPort) { this.dbPort = dbPort; }
+    public void setUsername(String username) { this.username = username; }
+    public void setPassword(String password) { this.password = password; }
+    public void setServerHost(String serverHost) { this.serverHost = serverHost; }
+    public void setServerPort(int serverPort) { this.serverPort = serverPort; }
+
+    public static String getDbType() { return dbType; }
+    public String getDbName() { return dbName; }
+    public String getDbHost() { return dbHost; }
+    public int getDbPort() { return dbPort; }
+    public String getUsername() { return username; }
+    public String getPassword() { return password; }
+    public static String getServerHost() { return serverHost; }
+    public static int getServerPort() { return serverPort; }
+
+    public ConfigReader(File configFile) {
         parseConfigFile(configFile);
     }
 
-    private void parseConfigFile(File configFile) {
+    public void parseConfigFile(File configFile) {
         try {
             DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
             DocumentBuilder builder = factory.newDocumentBuilder();
@@ -40,10 +63,12 @@ public class DatabaseConnectionManager {
             XPathFactory xpathFactory = XPathFactory.newInstance();
             XPath xpath = xpathFactory.newXPath();
 
-            dbConfig.setDbType(xpath.evaluate("/configuration/database/type", document));
-            dbConfig.setDbName(xpath.evaluate("/configuration/database/name", document));
-            dbConfig.setHost(xpath.evaluate("/configuration/database/host", document));
-            dbConfig.setPort(Integer.parseInt(xpath.evaluate("/configuration/database/port", document)));
+            this.setDbType(xpath.evaluate("/configuration/database/type", document));
+            this.setDbName(xpath.evaluate("/configuration/database/name", document));
+            this.setDbHost(xpath.evaluate("/configuration/database/host", document));
+            this.setDbPort(Integer.parseInt(xpath.evaluate("/configuration/database/port", document)));
+            this.setServerHost(xpath.evaluate("/configuration/api/host", document));
+            this.setServerPort(Integer.parseInt(xpath.evaluate("/configuration/api/port", document)));
 
             // Process username
             Node usernameNode = (Node) xpath.evaluate("/configuration/database/username", document, XPathConstants.NODE);
@@ -55,7 +80,7 @@ public class DatabaseConnectionManager {
                     ((Element) usernameNode).setTextContent(username);
                     ((Element) usernameNode).setAttribute("ENCRYPTED", "yes");
                 }
-                dbConfig.setUsername(username);
+                this.setUsername(username);
             }
 
             // Process password
@@ -68,7 +93,7 @@ public class DatabaseConnectionManager {
                     ((Element) passwordNode).setTextContent(password);
                     ((Element) passwordNode).setAttribute("ENCRYPTED", "yes");
                 }
-                dbConfig.setPassword(password);
+                this.setPassword(password);
             }
 
             // Save changes back to the XML file
@@ -119,27 +144,27 @@ public class DatabaseConnectionManager {
 
     public Connection getConnection() throws SQLException {
         String connectionUrl = buildConnectionUrl();
-        String decryptedUsername = decrypt(dbConfig.getUsername(), secretKey);
-        String decryptedPassword = decrypt(dbConfig.getPassword(), secretKey);
+        String decryptedUsername = decrypt(this.getUsername(), secretKey);
+        String decryptedPassword = decrypt(this.getPassword(), secretKey);
 
         return DriverManager.getConnection(connectionUrl, decryptedUsername, decryptedPassword);
     }
 
     private String buildConnectionUrl() {
-        switch (dbConfig.getDbType().toLowerCase()) {
+        switch (this.getDbType().toLowerCase()) {
             case "mysql":
-                return String.format("jdbc:mysql://%s:%d/%s", dbConfig.getHost(), dbConfig.getPort(), dbConfig.getDbName());
+                return String.format("jdbc:mysql://%s:%d/%s", this.getDbHost(), this.getDbPort(), this.getDbName());
             case "postgresql":
-                return String.format("jdbc:postgresql://%s:%d/%s", dbConfig.getHost(), dbConfig.getPort(), dbConfig.getDbName());
+                return String.format("jdbc:postgresql://%s:%d/%s", this.getDbHost(), this.getDbPort(), this.getDbName());
             case "mssql":
-                return String.format("jdbc:sqlserver://%s:%d;databaseName=%s", dbConfig.getHost(), dbConfig.getPort(), dbConfig.getDbName());
+                return String.format("jdbc:sqlserver://%s:%d;databaseName=%s", this.getDbHost(), this.getDbPort(), this.getDbName());
             default:
-                throw new IllegalArgumentException("Unsupported database type: " + dbConfig.getDbType());
+                throw new IllegalArgumentException("Unsupported database type: " + this.getDbType());
         }
     }
 
     public void createTables(Connection connection) throws SQLException {
-        String[] createTableCommands = getTableCreationCommands(dbConfig.getDbType());
+        String[] createTableCommands = getTableCreationCommands(this.getDbType());
 
         try (Statement statement = connection.createStatement()) {
             for (String sql : createTableCommands) {
@@ -260,6 +285,7 @@ public class DatabaseConnectionManager {
                         "period_id BIGINT PRIMARY KEY AUTO_INCREMENT, " +
                         "period VARCHAR(10) NOT NULL, " +    // yyyy-MM
                         "status VARCHAR(10) NOT NULL, " +
+                        "UNIQUE INDEX unique_period (period), "+
                         "date_created DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, " +
                         "date_modified DATETIME)",
 
@@ -305,31 +331,5 @@ public class DatabaseConnectionManager {
 
         };
     }
-
-
-
-
-    // DatabaseConfig inner class
-    public static class DatabaseConfig {
-        private static String dbType;
-        private String dbName;
-        private String host;
-        private int port;
-        private String username;
-        private String password;
-
-        public void setDbType(String dbType) { this.dbType = dbType; }
-        public void setDbName(String dbName) { this.dbName = dbName; }
-        public void setHost(String host) { this.host = host; }
-        public void setPort(int port) { this.port = port; }
-        public void setUsername(String username) { this.username = username; }
-        public void setPassword(String password) { this.password = password; }
-
-        public static String getDbType() { return dbType; }
-        public String getDbName() { return dbName; }
-        public String getHost() { return host; }
-        public int getPort() { return port; }
-        public String getUsername() { return username; }
-        public String getPassword() { return password; }
-    }
 }
+
